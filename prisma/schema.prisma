@@ -182,6 +182,15 @@ model WorkPackage {
   estimateHours    Int?
   percentComplete  Int                   @default(0)
   lastProgressNote String                @default("")
+  blockedReason    String?
+  blockedStartedAt DateTime?
+  blockedResolvedAt DateTime?
+  delayReason      String?
+  delayDays        Int                   @default(0)
+  delayStartedAt   DateTime?
+  delayResolvedAt  DateTime?
+  progressUpdatedByUserId String?
+  completedAt      DateTime?
   dependencies     String                @default("[]")
   requiredSkills   String                @default("[]")
   isOnCriticalPath Boolean               @default(false)
@@ -193,6 +202,9 @@ model WorkPackage {
   assignee         Person?               @relation("AssignedWorkPackages", fields: [assigneeId], references: [id])
   comments         WorkPackageComment[]
   approvals        WorkPackageApproval[]
+  progressEvents   WorkPackageProgressEvent[]
+  impactSources    WorkPackageImpactEvent[] @relation("ImpactSource")
+  impactTargets    WorkPackageImpactEvent[] @relation("ImpactTarget")
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
 
@@ -234,6 +246,46 @@ model WorkPackageApproval {
   createdAt        DateTime                  @default(now())
 
   @@index([workPackageId, createdAt])
+}
+
+model WorkPackageProgressEvent {
+  id            String                       @id @default(cuid())
+  workPackageId Int
+  projectId     String?
+  phaseRef      String?
+  nodeRef       String?
+  personId      String?
+  userId        String?
+  eventType     WorkPackageProgressEventType
+  reason        String?
+  previousJson  String                       @default("{}")
+  nextJson      String                       @default("{}")
+  occurredAt    DateTime                     @default(now())
+  workPackage   WorkPackage                  @relation(fields: [workPackageId], references: [id], onDelete: Cascade)
+
+  @@index([workPackageId, occurredAt])
+  @@index([projectId, occurredAt])
+  @@index([personId, eventType])
+  @@index([eventType, occurredAt])
+}
+
+model WorkPackageImpactEvent {
+  id                    String      @id @default(cuid())
+  projectId             String?
+  sourceWorkPackageId   Int
+  impactedWorkPackageId Int
+  dependencyPathJson    String      @default("[]")
+  delayDays             Int         @default(0)
+  reason                String?
+  resolvedAt            DateTime?
+  createdAt             DateTime    @default(now())
+  sourceWorkPackage     WorkPackage @relation("ImpactSource", fields: [sourceWorkPackageId], references: [id], onDelete: Cascade)
+  impactedWorkPackage   WorkPackage @relation("ImpactTarget", fields: [impactedWorkPackageId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([sourceWorkPackageId])
+  @@index([impactedWorkPackageId])
+  @@index([resolvedAt])
 }
 
 model StewardMessage {
@@ -375,6 +427,29 @@ enum QualitySnapshotSource {
   APPLIED
 }
 
+enum WorkPackageProgressEventType {
+  PROGRESS_UPDATED
+  BLOCKED
+  BLOCKED_RESOLVED
+  DELAYED
+  DELAY_RESOLVED
+  RISK_CHANGED
+  COMPLETED
+}
+
+enum ProjectQualitySnapshotTrigger {
+  MANUAL
+  TASK_PROGRESS_UPDATED
+  NODE_COMPLETED
+  MILESTONE_COMPLETED
+  BLOCKED_CHANGED
+  BLOCKED_RESOLVED
+  DELAY_CHANGED
+  DELAY_RESOLVED
+  IMPACT_PROPAGATED
+  PROJECT_COMPLETED
+}
+
 model ScheduleBaseline {
   id              String             @id @default(cuid())
   projectId       String
@@ -424,6 +499,7 @@ model ProjectQualitySnapshot {
   id                String                 @id @default(cuid())
   projectId         String
   source            QualitySnapshotSource
+  triggerType       ProjectQualitySnapshotTrigger @default(MANUAL)
   scenarioId        String?
   baselineId        String?
   projectProgress   Int

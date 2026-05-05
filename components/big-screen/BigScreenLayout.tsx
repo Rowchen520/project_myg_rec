@@ -844,6 +844,8 @@ function PlanInspector({
           <div><dt>项目编码</dt><dd>{plan.projectCode}</dd></div>
           <div><dt>周期</dt><dd>{formatDateLabel(plan.startDate)} — {formatDateLabel(plan.endDate)}</dd></div>
           <div><dt>整体进度</dt><dd>{plan.progress}%</dd></div>
+          <div><dt>阻塞 / Delay</dt><dd>{plan.currentBlockedCount ?? 0} / {plan.currentDelayCount ?? 0}</dd></div>
+          <div><dt>最大 Delay</dt><dd>{plan.maxDelayDays ?? 0} 天</dd></div>
           <div><dt>阶段 / 节点</dt><dd>{plan.phases.length} 个 · {plan.nodes.length} 个</dd></div>
           <div><dt>任务 / 里程碑</dt><dd>{taskCount} · {milestoneCount}</dd></div>
           <div><dt>整体难度</dt><dd>{difficultyLabel(projectDifficulty)}</dd></div>
@@ -852,7 +854,7 @@ function PlanInspector({
           <div className={`screen-info-phase ${selectedPhase.difficulty}`}>
             <strong>已选阶段：{selectedPhase.name}</strong>
             <small>{formatDateLabel(selectedPhase.startDate)} — {formatDateLabel(selectedPhase.endDate)} · {selectedPhase.progress}%</small>
-            <em>新增节点会归入此阶段</em>
+            <em>阻塞 {selectedPhase.blockedNodeCount ?? 0} · Delay {selectedPhase.delayNodeCount ?? 0} · 受影响 {selectedPhase.propagatedDelayDays ?? 0} 天</em>
           </div>
         ) : null}
       </section>
@@ -869,6 +871,17 @@ function PlanInspector({
               {selectedNode.isOnCriticalPath ? <li className="critical">关键路径</li> : null}
               {selectedNode.riskLevel ? <li className={`risk ${selectedNode.riskLevel}`}>{riskLabel(selectedNode.riskLevel)}</li> : null}
               {selectedNode.isBlocked ? <li className="blocked">存在阻塞</li> : null}
+              {(selectedNode.directDelayDays ?? 0) > 0 ? <li className="delay">Delay +{selectedNode.directDelayDays}天</li> : null}
+              {(selectedNode.propagatedDelayDays ?? 0) > 0 ? (
+                <li className={`delay propagated${selectedNode.absorbedUpstreamDelay ? " absorbed" : ""}`}>
+                  受依赖影响 +{selectedNode.propagatedDelayDays}天
+                </li>
+              ) : null}
+              {selectedNode.absorbedUpstreamDelay ? (
+                <li className="absorbed" title="本节点按原计划完成，已截断上游 Delay 传播">
+                  不受依赖 Delay 影响
+                </li>
+              ) : null}
               {typeof selectedNode.difficultyScore === "number" ? <li>难度分 {selectedNode.difficultyScore}</li> : null}
             </ul>
             {selectedNode.tasks.length ? (
@@ -1330,13 +1343,21 @@ function countTasks(plan: PlanModel): number {
  * phase and project difficulties are weighted by child difficulty ratios.
  */
 function recomputeDerivedPlanFields(plan: PlanModel): PlanModel {
+  const today = new Date(plan.today);
   const nodes = plan.nodes.map((node) => {
-    const tasks = node.tasks.map((task) => ({
-      ...task,
-      progress: clampProgress(task.progress),
-      difficulty: task.difficulty ?? node.difficulty,
-      status: inferTaskStatus(clampProgress(task.progress))
-    }));
+    const hasDependencyEdge = hasDependency(plan.dependencies, node.id);
+    const tasks = node.tasks.map((task) => {
+      const taskProgress = clampProgress(task.progress);
+      const systemBlocked = hasDependencyEdge && taskProgress < 100 && isPastDueDate(task.endDate, today);
+      return {
+        ...task,
+        progress: taskProgress,
+        difficulty: task.difficulty ?? node.difficulty,
+        status: inferTaskStatus(taskProgress),
+        isBlocked: Boolean(task.isBlocked || systemBlocked),
+        delayDays: calculateTaskDelayDays({ ...task, progress: taskProgress }, today)
+      };
+    });
     const taskProgressValues = tasks.map((task) => task.progress);
     const startDate = node.shape === "task"
       ? minIso(...tasks.map((task) => task.startDate).filter(Boolean) as string[]) ??
@@ -1353,14 +1374,28 @@ function recomputeDerivedPlanFields(plan: PlanModel): PlanModel {
       ? Math.round(taskProgressValues.reduce((sum, value) => sum + value, 0) / taskProgressValues.length)
       : clampProgress(node.progress);
     const riskLevel = node.riskLevel ?? highestRiskLevel(tasks.map((task) => task.riskLevel));
-    const isBlocked = Boolean(node.isBlocked || tasks.some((task) => task.isBlocked));
+    const systemBlocked = hasDependencyEdge && progress < 100 && isPastDueDate(endDate, today);
+    const isBlocked = Boolean(node.isBlocked || tasks.some((task) => task.isBlocked) || systemBlocked);
     const estimateHours = node.estimateHours ?? sumEstimateHours(tasks);
+    const blockedTasks = tasks.filter((task) => task.isBlocked);
+    const delayedTasks = tasks.filter((task) => (task.delayDays ?? 0) > 0);
+    const directDelayDays = Math.max(
+      calculateNodeScheduleDelayDays({ ...node, endDate, date: nextDate, progress }, today),
+      ...tasks.map((task) => task.delayDays ?? 0)
+    );
     return {
       ...node,
       tasks,
       estimateHours,
       riskLevel,
       isBlocked,
+      blockedReason: node.blockedReason ?? blockedTasks[0]?.blockedReason ?? (systemBlocked ? "存在依赖/关键路径且到期未完成" : undefined),
+      directDelayDays,
+      propagatedDelayDays: node.propagatedDelayDays ?? 0,
+      delayDays: directDelayDays,
+      delayReason: node.delayReason ?? delayedTasks[0]?.delayReason,
+      blockedTaskCount: blockedTasks.length,
+      delayTaskCount: delayedTasks.length,
       startDate,
       endDate,
       date: nextDate,
@@ -1369,9 +1404,10 @@ function recomputeDerivedPlanFields(plan: PlanModel): PlanModel {
       difficulty: node.difficulty
     };
   });
+  const nodesWithImpact = applyPropagatedDelay(nodes, plan.dependencies, today);
 
   const phases = plan.phases.map((phase) => {
-    const phaseNodes = nodes.filter((node) => node.phaseId === phase.id);
+    const phaseNodes = nodesWithImpact.filter((node) => node.phaseId === phase.id);
     if (phaseNodes.length === 0) {
       return { ...phase, difficulty: "low" as PlanDifficulty };
     }
@@ -1396,6 +1432,10 @@ function recomputeDerivedPlanFields(plan: PlanModel): PlanModel {
       criticalPathRatio: score.criticalPathRatio,
       riskRatio: score.riskRatio,
       blockedRatio: score.blockedRatio,
+      blockedNodeCount: phaseNodes.filter((node) => node.isBlocked).length,
+      delayNodeCount: phaseNodes.filter((node) => (node.delayDays ?? 0) > 0).length,
+      propagatedDelayDays: Math.max(0, ...phaseNodes.map((node) => node.propagatedDelayDays ?? 0)),
+      maxDelayDays: Math.max(0, ...phaseNodes.map((node) => node.delayDays ?? 0)),
       progress,
       startDate,
       endDate,
@@ -1417,11 +1457,15 @@ function recomputeDerivedPlanFields(plan: PlanModel): PlanModel {
     : plan.progress;
   return {
     ...plan,
-    nodes,
+    nodes: nodesWithImpact,
     phases,
     progress,
     projectDifficulty: projectScore.difficulty,
     projectDifficultyScore: projectScore.score,
+    currentBlockedCount: nodesWithImpact.filter((node) => node.isBlocked).length,
+    currentDelayCount: nodesWithImpact.filter((node) => (node.delayDays ?? 0) > 0).length,
+    resolvedBlockedCount: nodesWithImpact.filter((node) => !node.isBlocked && node.blockedResolvedAt).length,
+    maxDelayDays: Math.max(0, ...nodesWithImpact.map((node) => node.delayDays ?? 0)),
     startDate: phases.length ? minIso(...phases.map((phase) => phase.startDate)) ?? plan.startDate : plan.startDate,
     endDate: phases.length ? maxIso(...phases.map((phase) => phase.endDate)) ?? plan.endDate : plan.endDate
   };
@@ -1510,6 +1554,128 @@ function inferTaskStatus(progress: number): PlanTask["status"] {
   return "todo";
 }
 
+function calculateTaskDelayDays(task: PlanTask, today: Date, propagatedDelayDays = 0): number {
+  const due = task.endDate ? new Date(task.endDate) : undefined;
+  const adjustedDue = due ? addNaturalDays(due, propagatedDelayDays) : undefined;
+  const overdue = adjustedDue && task.progress < 100 && today > adjustedDue
+    ? naturalDayDelay(adjustedDue, today)
+    : 0;
+  return Math.max(0, overdue);
+}
+
+/**
+ * Recomputes a node's own schedule delay from its current deadline.
+ */
+function calculateNodeScheduleDelayDays(
+  node: Pick<PlanNode, "endDate" | "date" | "progress">,
+  today: Date,
+  propagatedDelayDays = 0
+): number {
+  const end = new Date(node.endDate ?? node.date);
+  if (Number.isNaN(end.getTime()) || node.progress >= 100) return 0;
+  return naturalDayDelay(addNaturalDays(end, propagatedDelayDays), today);
+}
+
+/**
+ * Applies dependency impact as deadline grace, then derives actual Delay after
+ * that grace is exhausted.
+ */
+function applyPropagatedDelay(
+  nodes: PlanNode[],
+  dependencies: PlanModel["dependencies"],
+  today: Date
+): PlanNode[] {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const propagated = new Map<string, { days: number; sources: Set<string> }>();
+  const absorbCapacityById = new Map(
+    nodes.map((node) => [node.id, calculateAbsorbCapacityDays(node, today)])
+  );
+
+  for (let pass = 0; pass < nodes.length; pass += 1) {
+    let changed = false;
+    const actualDelayById = new Map(
+      nodes.map((node) => [
+        node.id,
+        calculateActualNodeDelayDays(node, today, propagated.get(node.id)?.days ?? 0)
+      ])
+    );
+
+    for (const dependency of dependencies) {
+      const source = nodeById.get(dependency.fromNodeId);
+      const target = nodeById.get(dependency.toNodeId);
+      if (!source || !target) continue;
+      const sourcePropagated = propagated.get(source.id)?.days ?? 0;
+      const sourceCapacity = absorbCapacityById.get(source.id) ?? 0;
+      // Reduce upstream propagation by however many days this source can
+      // genuinely absorb (only completed nodes contribute capacity).
+      const reducedUpstream = Math.max(0, sourcePropagated - sourceCapacity);
+      const sourceDays = Math.max(actualDelayById.get(source.id) ?? 0, reducedUpstream);
+      if (sourceDays <= 0) continue;
+      const current = propagated.get(target.id) ?? { days: 0, sources: new Set<string>() };
+      if (sourceDays > current.days) {
+        current.days = sourceDays;
+        changed = true;
+      }
+      current.sources.add(source.id);
+      const upstream = propagated.get(source.id)?.sources;
+      if (upstream) {
+        for (const id of upstream) current.sources.add(id);
+      }
+      propagated.set(target.id, current);
+    }
+    if (!changed) break;
+  }
+
+  return nodes.map((node) => {
+    const impact = propagated.get(node.id);
+    const propagatedDelayDays = impact?.days ?? 0;
+    const tasks = node.tasks.map((task) => ({
+      ...task,
+      delayDays: calculateTaskDelayDays(task, today, propagatedDelayDays)
+    }));
+    const delayedTasks = tasks.filter((task) => (task.delayDays ?? 0) > 0);
+    const directDelayDays = calculateActualNodeDelayDays({ ...node, tasks }, today, propagatedDelayDays);
+    const absorbCapacity = absorbCapacityById.get(node.id) ?? 0;
+    // Fully absorbed: this node took some upstream delay AND its absorb capacity
+    // covers the full incoming amount, so downstream sees zero propagation.
+    const absorbedUpstreamDelay =
+      propagatedDelayDays > 0 && directDelayDays === 0 && propagatedDelayDays <= absorbCapacity;
+    return {
+      ...node,
+      tasks,
+      directDelayDays,
+      propagatedDelayDays,
+      delayDays: directDelayDays,
+      delayReason: node.delayReason ?? delayedTasks[0]?.delayReason,
+      delayTaskCount: delayedTasks.length,
+      impactSourceNodeIds: impact ? Array.from(impact.sources) : [],
+      absorbedUpstreamDelay
+    };
+  });
+}
+
+function calculateActualNodeDelayDays(node: PlanNode, today: Date, propagatedDelayDays: number): number {
+  return Math.max(
+    calculateNodeScheduleDelayDays(node, today, propagatedDelayDays),
+    ...node.tasks.map((task) => calculateTaskDelayDays(task, today, propagatedDelayDays))
+  );
+}
+
+/**
+ * How many days of upstream Delay this node can genuinely absorb. Only nodes
+ * that have already finished within their own original deadline contribute
+ * capacity; in-flight nodes return 0 because we cannot prove they will land
+ * on time yet.
+ */
+function calculateAbsorbCapacityDays(node: PlanNode, today: Date): number {
+  if ((node.progress ?? 0) < 100) return 0;
+  const due = new Date(node.endDate ?? node.date);
+  if (Number.isNaN(due.getTime())) return 0;
+  const reference = node.completedAt ? new Date(node.completedAt) : today;
+  if (Number.isNaN(reference.getTime())) return 0;
+  return naturalDayDelay(reference, due);
+}
+
 function difficultyFromScore(score: number): PlanDifficulty {
   if (score >= 80) return "critical";
   if (score >= 60) return "high";
@@ -1526,6 +1692,28 @@ function riskSeverity(level?: PlanRiskLevel): number {
   if (level === "medium") return 0.6;
   if (level === "low") return 0.2;
   return 0;
+}
+
+function naturalDayDelay(due: Date, today: Date): number {
+  const dueDay = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate());
+  const todayDay = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  if (todayDay <= dueDay) return 0;
+  return Math.round((todayDay - dueDay) / DAY_MS);
+}
+
+function addNaturalDays(value: Date, days: number): Date {
+  const next = new Date(value);
+  next.setUTCDate(next.getUTCDate() + Math.max(0, days));
+  return next;
+}
+
+function isPastDueDate(value: string | undefined, today: Date): boolean {
+  if (!value) return false;
+  return naturalDayDelay(new Date(value), today) > 0;
+}
+
+function hasDependency(dependencies: PlanModel["dependencies"], nodeId: string): boolean {
+  return dependencies.some((dependency) => dependency.fromNodeId === nodeId || dependency.toNodeId === nodeId);
 }
 
 function highestRiskLevel(values: Array<PlanRiskLevel | undefined>): PlanRiskLevel | undefined {

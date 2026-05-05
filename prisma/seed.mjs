@@ -592,6 +592,8 @@ async function main() {
   await prisma.agentApiKey.deleteMany();
   await prisma.projectQualityMetric.deleteMany();
   await prisma.projectQualitySnapshot.deleteMany();
+  await prisma.workPackageImpactEvent.deleteMany();
+  await prisma.workPackageProgressEvent.deleteMany();
   await prisma.notificationDelivery.deleteMany();
   await prisma.notificationRuleChannel.deleteMany();
   await prisma.notificationRule.deleteMany();

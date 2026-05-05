@@ -269,6 +269,119 @@ describe("big screen derived plan metrics", () => {
     expect(derived.nodes[0].endDate).toBe("2026-05-08T00:00:00.000Z");
     expect(derived.phases[0].endDate).toBe("2026-05-08T00:00:00.000Z");
   });
+
+  it("propagates upstream delay through dependency links", () => {
+    const phase = {
+      id: "phase-delay",
+      name: "Delay 阶段",
+      startDate: "2026-05-01T00:00:00.000Z",
+      endDate: "2026-05-15T00:00:00.000Z",
+      progress: 0,
+      difficulty: "medium" as const,
+      summary: "测试阶段",
+      riskCount: 0,
+      taskCount: 2
+    };
+    const plan: PlanModel = {
+      projectId: "proj-delay",
+      projectName: "Delay 传播项目",
+      projectCode: "DELAY",
+      subtitle: "质量指标测试",
+      statusBadge: "执行中",
+      progress: 0,
+      projectDifficulty: "medium",
+      startDate: "2026-05-01T00:00:00.000Z",
+      endDate: "2026-05-15T00:00:00.000Z",
+      today: "2026-05-10T00:00:00.000Z",
+      phases: [phase],
+      dependencies: [{ fromNodeId: "node-a", toNodeId: "node-b", isCritical: false }],
+      nodes: [
+        { ...buildNode("node-a", phase.id, "medium"), endDate: "2026-05-05T00:00:00.000Z", progress: 50 },
+        buildNode("node-b", phase.id, "medium")
+      ]
+    };
+
+    const derived = derivePlanMetrics(plan);
+    const downstream = derived.nodes.find((node) => node.id === "node-b");
+
+    expect(derived.nodes.find((node) => node.id === "node-a")?.directDelayDays).toBe(5);
+    expect(downstream?.propagatedDelayDays).toBe(5);
+    expect(downstream?.impactSourceNodeIds).toEqual(["node-a"]);
+    expect(derived.phases[0].delayNodeCount).toBe(2);
+  });
+
+  it("does not count delay on the due date itself", () => {
+    const phase = {
+      id: "phase-today",
+      name: "当天阶段",
+      startDate: "2026-05-01T00:00:00.000Z",
+      endDate: "2026-05-10T00:00:00.000Z",
+      progress: 0,
+      difficulty: "medium" as const,
+      summary: "测试阶段",
+      riskCount: 0,
+      taskCount: 1
+    };
+    const plan: PlanModel = {
+      projectId: "proj-today",
+      projectName: "当天不算延期",
+      projectCode: "TODAY",
+      subtitle: "质量指标测试",
+      statusBadge: "执行中",
+      progress: 0,
+      projectDifficulty: "medium",
+      startDate: "2026-05-01T00:00:00.000Z",
+      endDate: "2026-05-10T00:00:00.000Z",
+      today: "2026-05-10T18:00:00.000Z",
+      phases: [phase],
+      dependencies: [],
+      nodes: [{ ...buildNode("node-today", phase.id, "medium"), endDate: "2026-05-10T00:00:00.000Z", progress: 50 }]
+    };
+
+    const derived = derivePlanMetrics(plan);
+
+    expect(derived.nodes[0].directDelayDays).toBe(0);
+    expect(derived.nodes[0].isBlocked).toBe(false);
+  });
+
+  it("auto-blocks overdue unfinished nodes only when dependencies exist", () => {
+    const phase = {
+      id: "phase-block",
+      name: "系统阻塞阶段",
+      startDate: "2026-05-01T00:00:00.000Z",
+      endDate: "2026-05-10T00:00:00.000Z",
+      progress: 0,
+      difficulty: "medium" as const,
+      summary: "测试阶段",
+      riskCount: 0,
+      taskCount: 2
+    };
+    const plan: PlanModel = {
+      projectId: "proj-block",
+      projectName: "系统阻塞项目",
+      projectCode: "BLOCK",
+      subtitle: "质量指标测试",
+      statusBadge: "执行中",
+      progress: 0,
+      projectDifficulty: "medium",
+      startDate: "2026-05-01T00:00:00.000Z",
+      endDate: "2026-05-10T00:00:00.000Z",
+      today: "2026-05-12T00:00:00.000Z",
+      phases: [phase],
+      dependencies: [{ fromNodeId: "node-source", toNodeId: "node-dependent", isCritical: false }],
+      nodes: [
+        { ...buildNode("node-source", phase.id, "medium"), endDate: "2026-05-10T00:00:00.000Z", progress: 50 },
+        { ...buildNode("node-dependent", phase.id, "medium"), endDate: "2026-05-10T00:00:00.000Z", progress: 50 },
+        { ...buildNode("node-free", phase.id, "medium"), endDate: "2026-05-10T00:00:00.000Z", progress: 50 }
+      ]
+    };
+
+    const derived = derivePlanMetrics(plan);
+
+    expect(derived.nodes.find((node) => node.id === "node-source")?.isBlocked).toBe(true);
+    expect(derived.nodes.find((node) => node.id === "node-dependent")?.isBlocked).toBe(true);
+    expect(derived.nodes.find((node) => node.id === "node-free")?.isBlocked).toBe(false);
+  });
 });
 
 function buildNode(id: string, phaseId: string, difficulty: PlanModel["nodes"][number]["difficulty"]) {

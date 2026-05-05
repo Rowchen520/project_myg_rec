@@ -34,6 +34,14 @@ export interface WorkPackageProgressInput {
   percentComplete?: number;
   status?: WorkPackageStatus;
   lastProgressNote?: string;
+  blockedReason?: string | null;
+  blockedStartedAt?: string | null;
+  blockedResolvedAt?: string | null;
+  delayReason?: string | null;
+  delayDays?: number;
+  delayStartedAt?: string | null;
+  delayResolvedAt?: string | null;
+  riskLevel?: WorkPackage["riskLevel"] | null;
   assigneeId?: string;
   projectId?: string | null;
   startDate?: string | null;
@@ -154,6 +162,7 @@ export async function updateWorkPackage(
     : Math.min(100, Math.max(0, Math.round(input.percentComplete)));
   const status = input.status ?? inferStatusFromPercent(percentComplete, wp.type);
   const nextProjectId = resolveProjectChange(wp, input.projectId, user);
+  const eventTypes = collectProgressEventTypes(wp, input, percentComplete);
   const updated = await prisma.workPackage.update({
     where: { id: workPackageId },
     data: {
@@ -161,17 +170,56 @@ export async function updateWorkPackage(
       percentComplete,
       status,
       lastProgressNote: input.lastProgressNote,
+      blockedReason: input.blockedReason === undefined ? undefined : input.blockedReason,
+      blockedStartedAt: input.blockedStartedAt === undefined ? undefined : input.blockedStartedAt ? new Date(input.blockedStartedAt) : null,
+      blockedResolvedAt: input.blockedResolvedAt === undefined ? undefined : input.blockedResolvedAt ? new Date(input.blockedResolvedAt) : null,
+      delayReason: input.delayReason === undefined ? undefined : input.delayReason,
+      delayDays: input.delayDays === undefined ? undefined : Math.max(0, Math.round(input.delayDays)),
+      delayStartedAt: input.delayStartedAt === undefined ? undefined : input.delayStartedAt ? new Date(input.delayStartedAt) : null,
+      delayResolvedAt: input.delayResolvedAt === undefined ? undefined : input.delayResolvedAt ? new Date(input.delayResolvedAt) : null,
+      progressUpdatedByUserId: percentComplete === undefined ? undefined : user.id,
+      completedAt: percentComplete !== undefined && percentComplete >= 100 ? new Date() : undefined,
       assigneeId: user.role === "participant" ? undefined : input.assigneeId,
       subject: input.subject,
       description: input.description,
       priority: input.priority,
       difficulty: input.difficulty ? toStoredDifficulty(input.difficulty) : undefined,
+      riskLevel: input.riskLevel === undefined ? undefined : input.riskLevel ? input.riskLevel.toUpperCase() as "LOW" | "MEDIUM" | "HIGH" : null,
       parentId: input.parentId === undefined ? undefined : input.parentId,
       startDate: input.startDate === undefined ? undefined : input.startDate ? new Date(input.startDate) : null,
       dueDate: input.dueDate === undefined ? undefined : input.dueDate ? new Date(input.dueDate) : null,
       estimateHours: input.estimateHours === undefined ? undefined : input.estimateHours
     }
   });
+
+  for (const eventType of eventTypes) {
+    await prisma.workPackageProgressEvent.create({
+      data: {
+        workPackageId,
+        projectId: updated.projectId,
+        personId: updated.assigneeId,
+        userId: user.id,
+        eventType,
+        reason: input.lastProgressNote ?? input.blockedReason ?? input.delayReason,
+        previousJson: JSON.stringify({
+          percentComplete: wp.percentComplete,
+          status: wp.status,
+          blockedReason: wp.blockedReason,
+          delayReason: wp.delayReason,
+          delayDays: wp.delayDays,
+          riskLevel: wp.riskLevel
+        }),
+        nextJson: JSON.stringify({
+          percentComplete: updated.percentComplete,
+          status: updated.status,
+          blockedReason: updated.blockedReason,
+          delayReason: updated.delayReason,
+          delayDays: updated.delayDays,
+          riskLevel: updated.riskLevel
+        })
+      }
+    });
+  }
 
   return mapWorkPackage(updated as StoredWorkPackage);
 }
@@ -372,4 +420,32 @@ function inferStatusFromPercent(
   }
 
   return "todo";
+}
+
+function collectProgressEventTypes(
+  current: WorkPackage,
+  input: WorkPackageProgressInput,
+  percentComplete: number | undefined
+) {
+  const events: Array<"PROGRESS_UPDATED" | "BLOCKED" | "BLOCKED_RESOLVED" | "DELAYED" | "DELAY_RESOLVED" | "RISK_CHANGED" | "COMPLETED"> = [];
+  if (percentComplete !== undefined && percentComplete !== current.percentComplete) {
+    events.push("PROGRESS_UPDATED");
+    if (percentComplete >= 100) events.push("COMPLETED");
+  }
+  if (input.blockedStartedAt !== undefined && input.blockedStartedAt && !current.blockedStartedAt) {
+    events.push("BLOCKED");
+  }
+  if (input.blockedResolvedAt !== undefined && input.blockedResolvedAt) {
+    events.push("BLOCKED_RESOLVED");
+  }
+  if ((input.delayDays ?? 0) > (current.delayDays ?? 0) || (input.delayStartedAt !== undefined && input.delayStartedAt && !current.delayStartedAt)) {
+    events.push("DELAYED");
+  }
+  if (input.delayResolvedAt !== undefined && input.delayResolvedAt) {
+    events.push("DELAY_RESOLVED");
+  }
+  if (input.riskLevel !== undefined && input.riskLevel !== current.riskLevel) {
+    events.push("RISK_CHANGED");
+  }
+  return Array.from(new Set(events));
 }

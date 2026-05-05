@@ -179,6 +179,7 @@ export function NodeDetailDrawer({ node, phaseName, editing, onClose, onSubmit }
                         title: "新增任务项",
                         ownerLabel: "未分配",
                         difficulty,
+                        delayDays: 0,
                         progress: 0,
                         status: "todo"
                       }
@@ -243,6 +244,39 @@ export function NodeDetailDrawer({ node, phaseName, editing, onClose, onSubmit }
                       disabled={!editing}
                     />
                     <span className="screen-drawer-task-pct">%</span>
+                    <span className="screen-drawer-task-delay" title="Delay 天数由系统按结束日期实时计算">
+                      {task.delayDays ?? 0}天
+                    </span>
+                    <label className="screen-drawer-task-blocked">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(task.isBlocked)}
+                        onChange={(event) =>
+                          setTasks((current) =>
+                            current.map((item, idx) =>
+                              idx === index ? { ...item, isBlocked: event.target.checked } : item
+                            )
+                          )
+                        }
+                        disabled={!editing}
+                      />
+                      阻塞
+                    </label>
+                    <input
+                      className="screen-drawer-task-reason"
+                      value={task.blockedReason ?? task.delayReason ?? ""}
+                      onChange={(event) =>
+                        setTasks((current) =>
+                          current.map((item, idx) =>
+                            idx === index
+                              ? { ...item, blockedReason: event.target.value, delayReason: event.target.value }
+                              : item
+                          )
+                        )
+                      }
+                      placeholder="原因"
+                      disabled={!editing}
+                    />
                     {editing ? (
                       <button
                         type="button"

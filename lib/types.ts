@@ -113,6 +113,15 @@ export interface WorkPackage {
   estimateHours?: number;
   percentComplete: number;
   lastProgressNote: string;
+  blockedReason?: string;
+  blockedStartedAt?: string;
+  blockedResolvedAt?: string;
+  delayReason?: string;
+  delayDays?: number;
+  delayStartedAt?: string;
+  delayResolvedAt?: string;
+  progressUpdatedByUserId?: string;
+  completedAt?: string;
   dependencies: number[];
   requiredSkills?: string[];
   isOnCriticalPath?: boolean;

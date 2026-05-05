@@ -34,6 +34,14 @@ export interface PlanTask {
   difficulty?: PlanDifficulty;
   riskLevel?: PlanRiskLevel;
   isBlocked?: boolean;
+  blockedReason?: string;
+  blockedStartedAt?: string;
+  blockedResolvedAt?: string;
+  delayReason?: string;
+  delayDays?: number;
+  delayStartedAt?: string;
+  delayResolvedAt?: string;
+  completedAt?: string;
   progress: number;
   status: "todo" | "in_progress" | "done";
   workPackageId?: number;
@@ -53,6 +61,25 @@ export interface PlanNode {
   difficultyScore?: number;
   riskLevel?: PlanRiskLevel;
   isBlocked?: boolean;
+  blockedReason?: string;
+  blockedStartedAt?: string;
+  blockedResolvedAt?: string;
+  delayReason?: string;
+  directDelayDays?: number;
+  propagatedDelayDays?: number;
+  delayDays?: number;
+  delayStartedAt?: string;
+  delayResolvedAt?: string;
+  blockedTaskCount?: number;
+  delayTaskCount?: number;
+  impactSourceNodeIds?: string[];
+  impactedNodeIds?: string[];
+  /**
+   * True when the node received upstream delay but still meets its own original
+   * deadline. These nodes break the propagation chain.
+   */
+  absorbedUpstreamDelay?: boolean;
+  completedAt?: string;
   progress: number;
   ownerLabel?: string;
   ownerPersonId?: string;
@@ -73,6 +100,10 @@ export interface PlanPhase {
   criticalPathRatio?: number;
   riskRatio?: number;
   blockedRatio?: number;
+  blockedNodeCount?: number;
+  delayNodeCount?: number;
+  propagatedDelayDays?: number;
+  maxDelayDays?: number;
   summary: string;
   ownerLabel?: string;
   ownerPersonId?: string;
@@ -96,6 +127,10 @@ export interface PlanModel {
   progress: number;
   projectDifficulty: PlanDifficulty;
   projectDifficultyScore?: number;
+  currentBlockedCount?: number;
+  currentDelayCount?: number;
+  resolvedBlockedCount?: number;
+  maxDelayDays?: number;
   initialDifficulty?: PlanDifficulty;
   difficultyOverride?: PlanDifficulty;
   startDate: string;
@@ -254,6 +289,7 @@ export async function patchScenario(options: {
   await recordQualitySnapshot({
     plan: nextDraft,
     source: "DRAFT",
+    triggerType: snapshotTriggerFromChanges(options.changes, nextDraft),
     scenarioId: scenario.id,
     createdByUserId: options.user.id
   });
@@ -345,6 +381,7 @@ export async function applyScenario(options: { scenarioId: string; user: User })
   await recordQualitySnapshot({
     plan: draft,
     source: "APPLIED",
+    triggerType: draft.progress >= 100 ? "PROJECT_COMPLETED" : snapshotTriggerFromChanges([], draft),
     scenarioId: scenario.id,
     baselineId: baseline.id,
     createdByUserId: options.user.id
@@ -374,6 +411,32 @@ export async function listScenarioChanges(scenarioId: string) {
     orderBy: { createdAt: "desc" },
     take: 200
   });
+}
+
+export async function recordProjectStateSnapshot(options: {
+  projectId: string;
+  user?: User;
+  triggerType:
+    | "TASK_PROGRESS_UPDATED"
+    | "NODE_COMPLETED"
+    | "MILESTONE_COMPLETED"
+    | "BLOCKED_CHANGED"
+    | "BLOCKED_RESOLVED"
+    | "DELAY_CHANGED"
+    | "DELAY_RESOLVED"
+    | "IMPACT_PROPAGATED"
+    | "PROJECT_COMPLETED";
+}) {
+  const { snapshot } = await loadWorkspaceSnapshot(options.user ? { userId: options.user.id } : {});
+  const project = resolveVisibleProject(snapshot.projects, options.projectId, options.user, options.user === undefined);
+  const plan = derivePlanMetrics(buildPlanFromWorkspace(project, snapshot));
+  await recordQualitySnapshot({
+    plan,
+    source: "BASELINE",
+    triggerType: options.triggerType,
+    createdByUserId: options.user?.id
+  });
+  await recordImpactEvents(plan);
 }
 
 /* ----------------------- Plan model construction ----------------------- */
@@ -453,6 +516,14 @@ function buildPlanFromWorkspace(project: Project, snapshot: WorkspaceSnapshot): 
         estimateHours: milestone.estimateHours,
         riskLevel: riskLevelFromWorkPackage(milestone),
         isBlocked: isBlockedWorkPackage(milestone),
+        blockedReason: milestone.blockedReason,
+        blockedStartedAt: milestone.blockedStartedAt,
+        blockedResolvedAt: milestone.blockedResolvedAt,
+        delayReason: milestone.delayReason,
+        delayDays: milestone.delayDays,
+        delayStartedAt: milestone.delayStartedAt,
+        delayResolvedAt: milestone.delayResolvedAt,
+        completedAt: milestone.completedAt,
         progress: milestone.percentComplete,
         ownerLabel: owner?.name,
         ownerPersonId: owner?.id,
@@ -479,6 +550,14 @@ function buildPlanFromWorkspace(project: Project, snapshot: WorkspaceSnapshot): 
         estimateHours: task.estimateHours,
         riskLevel: riskLevelFromWorkPackage(task),
         isBlocked: isBlockedWorkPackage(task),
+        blockedReason: task.blockedReason,
+        blockedStartedAt: task.blockedStartedAt,
+        blockedResolvedAt: task.blockedResolvedAt,
+        delayReason: task.delayReason,
+        delayDays: task.delayDays,
+        delayStartedAt: task.delayStartedAt,
+        delayResolvedAt: task.delayResolvedAt,
+        completedAt: task.completedAt,
         progress: task.percentComplete,
         ownerLabel: owner?.name,
         ownerPersonId: owner?.id,
@@ -494,6 +573,14 @@ function buildPlanFromWorkspace(project: Project, snapshot: WorkspaceSnapshot): 
             difficulty: difficultyFromWorkPackage(task),
             riskLevel: riskLevelFromWorkPackage(task),
             isBlocked: isBlockedWorkPackage(task),
+            blockedReason: task.blockedReason,
+            blockedStartedAt: task.blockedStartedAt,
+            blockedResolvedAt: task.blockedResolvedAt,
+            delayReason: task.delayReason,
+            delayDays: task.delayDays,
+            delayStartedAt: task.delayStartedAt,
+            delayResolvedAt: task.delayResolvedAt,
+            completedAt: task.completedAt,
             progress: task.percentComplete,
             status: normalizeTaskStatus(task.status),
             workPackageId: task.id
@@ -568,13 +655,21 @@ function buildPhase(
 }
 
 export function derivePlanMetrics(plan: PlanModel): PlanModel {
+  const today = new Date(plan.today);
   const nodes = plan.nodes.map((node) => {
-    const tasks = node.tasks.map((task) => ({
-      ...task,
-      progress: clampProgress(task.progress),
-      difficulty: task.difficulty ?? node.difficulty,
-      status: inferTaskStatus(clampProgress(task.progress))
-    }));
+    const hasDependencyEdge = hasDependency(plan.dependencies, node.id);
+    const tasks = node.tasks.map((task) => {
+      const taskProgress = clampProgress(task.progress);
+      const systemBlocked = hasDependencyEdge && taskProgress < 100 && isPastDueDate(task.endDate, today);
+      return {
+        ...task,
+        progress: taskProgress,
+        difficulty: task.difficulty ?? node.difficulty,
+        status: inferTaskStatus(taskProgress),
+        isBlocked: Boolean(task.isBlocked || systemBlocked),
+        delayDays: calculateTaskDelayDays({ ...task, progress: taskProgress }, today)
+      };
+    });
     const taskProgressValues = tasks.map((task) => task.progress);
     const taskStart = minIso(...tasks.map((task) => task.startDate).filter(isString));
     const taskEnd = maxIso(...tasks.map((task) => task.endDate ?? task.startDate).filter(isString));
@@ -589,8 +684,17 @@ export function derivePlanMetrics(plan: PlanModel): PlanModel {
       ? averageProgress(taskProgressValues)
       : clampProgress(node.progress);
     const riskLevel = node.riskLevel ?? highestRiskLevel(tasks.map((task) => task.riskLevel));
-    const isBlocked = Boolean(node.isBlocked || tasks.some((task) => task.isBlocked));
+    const systemBlocked = hasDependencyEdge && progress < 100 && isPastDueDate(endDate, today);
+    const isBlocked = Boolean(node.isBlocked || tasks.some((task) => task.isBlocked) || systemBlocked);
     const estimateHours = node.estimateHours ?? sumEstimateHours(tasks);
+    const blockedTasks = tasks.filter((task) => task.isBlocked);
+    const delayedTasks = tasks.filter((task) => (task.delayDays ?? 0) > 0);
+    const nodeDirectDelayDays = Math.max(
+      calculateNodeScheduleDelayDays({ ...node, startDate, endDate, progress }, today),
+      ...tasks.map((task) => task.delayDays ?? 0)
+    );
+    const blockedReason = node.blockedReason ?? blockedTasks[0]?.blockedReason;
+    const delayReason = node.delayReason ?? delayedTasks[0]?.delayReason;
 
     return {
       ...node,
@@ -598,6 +702,13 @@ export function derivePlanMetrics(plan: PlanModel): PlanModel {
       estimateHours,
       riskLevel,
       isBlocked,
+      blockedReason: blockedReason ?? (systemBlocked ? "存在依赖/关键路径且到期未完成" : undefined),
+      directDelayDays: nodeDirectDelayDays,
+      propagatedDelayDays: node.propagatedDelayDays ?? 0,
+      delayDays: nodeDirectDelayDays,
+      delayReason,
+      blockedTaskCount: blockedTasks.length,
+      delayTaskCount: delayedTasks.length,
       startDate,
       endDate,
       date: nextDate,
@@ -606,9 +717,10 @@ export function derivePlanMetrics(plan: PlanModel): PlanModel {
       difficulty: node.difficulty
     };
   });
+  const nodesWithImpact = applyPropagatedDelay(nodes, plan.dependencies, today);
 
   const phases = plan.phases.map((phase) => {
-    const phaseNodes = nodes.filter((node) => node.phaseId === phase.id);
+    const phaseNodes = nodesWithImpact.filter((node) => node.phaseId === phase.id);
     const progress = phaseNodes.length
       ? averageProgress(phaseNodes.map((node) => node.progress))
       : clampProgress(phase.progress);
@@ -635,6 +747,10 @@ export function derivePlanMetrics(plan: PlanModel): PlanModel {
       criticalPathRatio: score.criticalPathRatio,
       riskRatio: score.riskRatio,
       blockedRatio: score.blockedRatio,
+      blockedNodeCount: phaseNodes.filter((node) => node.isBlocked).length,
+      delayNodeCount: phaseNodes.filter((node) => (node.delayDays ?? 0) > 0).length,
+      propagatedDelayDays: Math.max(0, ...phaseNodes.map((node) => node.propagatedDelayDays ?? 0)),
+      maxDelayDays: Math.max(0, ...phaseNodes.map((node) => node.delayDays ?? 0)),
       taskCount: phaseNodes.length
     };
   });
@@ -660,10 +776,14 @@ export function derivePlanMetrics(plan: PlanModel): PlanModel {
     progress,
     projectDifficulty: projectScore.difficulty,
     projectDifficultyScore: projectScore.score,
+    currentBlockedCount: nodesWithImpact.filter((node) => node.isBlocked).length,
+    currentDelayCount: nodesWithImpact.filter((node) => (node.delayDays ?? 0) > 0).length,
+    resolvedBlockedCount: nodesWithImpact.filter((node) => !node.isBlocked && node.blockedResolvedAt).length,
+    maxDelayDays: Math.max(0, ...nodesWithImpact.map((node) => node.delayDays ?? 0)),
     startDate,
     endDate,
     phases,
-    nodes
+    nodes: nodesWithImpact
   };
 }
 
@@ -695,7 +815,121 @@ function riskLevelFromWorkPackage(item: WorkPackage): PlanRiskLevel | undefined 
 }
 
 function isBlockedWorkPackage(item: WorkPackage): boolean {
-  return ["blocked", "atRisk", "open"].includes(item.status);
+  return ["blocked", "atRisk"].includes(item.status) || Boolean(item.blockedStartedAt && !item.blockedResolvedAt);
+}
+
+function calculateTaskDelayDays(task: PlanTask, today: Date, propagatedDelayDays = 0): number {
+  const due = task.endDate ? new Date(task.endDate) : undefined;
+  const adjustedDue = due ? addNaturalDays(due, propagatedDelayDays) : undefined;
+  const overdue = adjustedDue && task.progress < 100 && today > adjustedDue
+    ? naturalDayDelay(adjustedDue, today)
+    : 0;
+  return Math.max(0, overdue);
+}
+
+function calculateNodeScheduleDelayDays(
+  node: Pick<PlanNode, "endDate" | "date" | "progress">,
+  today: Date,
+  propagatedDelayDays = 0
+): number {
+  const end = new Date(node.endDate ?? node.date);
+  if (Number.isNaN(end.getTime()) || node.progress >= 100 || naturalDayDelay(end, today) <= 0) return 0;
+  return naturalDayDelay(addNaturalDays(end, propagatedDelayDays), today);
+}
+
+/**
+ * Treats upstream delay propagation as deadline grace for downstream nodes.
+ */
+function applyPropagatedDelay(nodes: PlanNode[], dependencies: PlanDependency[], today: Date): PlanNode[] {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const propagated = new Map<string, { days: number; sources: Set<string> }>();
+  const absorbCapacityById = new Map(
+    nodes.map((node) => [node.id, calculateAbsorbCapacityDays(node, today)])
+  );
+
+  for (let pass = 0; pass < nodes.length; pass += 1) {
+    let changed = false;
+    const actualDelayById = new Map(
+      nodes.map((node) => [
+        node.id,
+        calculateActualNodeDelayDays(node, today, propagated.get(node.id)?.days ?? 0)
+      ])
+    );
+
+    for (const dependency of dependencies) {
+      const source = nodeById.get(dependency.fromNodeId);
+      const target = nodeById.get(dependency.toNodeId);
+      if (!source || !target) continue;
+      const sourcePropagated = propagated.get(source.id)?.days ?? 0;
+      const sourceCapacity = absorbCapacityById.get(source.id) ?? 0;
+      // Reduce upstream propagation by however many days this source can
+      // genuinely absorb (only completed nodes contribute capacity).
+      const reducedUpstream = Math.max(0, sourcePropagated - sourceCapacity);
+      const sourceDays = Math.max(actualDelayById.get(source.id) ?? 0, reducedUpstream);
+      if (sourceDays <= 0) continue;
+      const current = propagated.get(target.id) ?? { days: 0, sources: new Set<string>() };
+      if (sourceDays > current.days) {
+        current.days = sourceDays;
+        changed = true;
+      }
+      current.sources.add(source.id);
+      const upstream = propagated.get(source.id)?.sources;
+      if (upstream) {
+        for (const id of upstream) current.sources.add(id);
+      }
+      propagated.set(target.id, current);
+    }
+    if (!changed) break;
+  }
+
+  return nodes.map((node) => {
+    const impact = propagated.get(node.id);
+    const propagatedDelayDays = impact?.days ?? 0;
+    const tasks = node.tasks.map((task) => ({
+      ...task,
+      delayDays: calculateTaskDelayDays(task, today, propagatedDelayDays)
+    }));
+    const delayedTasks = tasks.filter((task) => (task.delayDays ?? 0) > 0);
+    const delayDays = calculateActualNodeDelayDays({ ...node, tasks }, today, propagatedDelayDays);
+    const absorbCapacity = absorbCapacityById.get(node.id) ?? 0;
+    // Fully absorbed: this node took some upstream delay AND its absorb capacity
+    // covers the full incoming amount, so downstream sees zero propagation.
+    const absorbedUpstreamDelay =
+      propagatedDelayDays > 0 && delayDays === 0 && propagatedDelayDays <= absorbCapacity;
+    return {
+      ...node,
+      tasks,
+      directDelayDays: delayDays,
+      propagatedDelayDays,
+      delayDays,
+      delayReason: delayedTasks[0]?.delayReason ?? node.delayReason,
+      delayTaskCount: delayedTasks.length,
+      impactSourceNodeIds: impact ? Array.from(impact.sources) : [],
+      absorbedUpstreamDelay
+    };
+  });
+}
+
+function calculateActualNodeDelayDays(node: PlanNode, today: Date, propagatedDelayDays: number): number {
+  return Math.max(
+    calculateNodeScheduleDelayDays(node, today, propagatedDelayDays),
+    ...node.tasks.map((task) => calculateTaskDelayDays(task, today, propagatedDelayDays))
+  );
+}
+
+/**
+ * How many days of upstream Delay this node can genuinely absorb. Only nodes
+ * that have already finished within their own original deadline contribute
+ * capacity; in-flight nodes return 0 because we cannot prove they will land
+ * on time yet.
+ */
+function calculateAbsorbCapacityDays(node: PlanNode, today: Date): number {
+  if ((node.progress ?? 0) < 100) return 0;
+  const due = new Date(node.endDate ?? node.date);
+  if (Number.isNaN(due.getTime())) return 0;
+  const reference = node.completedAt ? new Date(node.completedAt) : today;
+  if (Number.isNaN(reference.getTime())) return 0;
+  return naturalDayDelay(reference, due);
 }
 
 function shortLabel(subject: string): string {
@@ -719,6 +953,28 @@ function statusBadge(status: Project["status"]) {
   if (status === "active") return "执行中";
   if (status === "onHold") return "暂停";
   return "已归档";
+}
+
+function naturalDayDelay(due: Date, today: Date): number {
+  const dueDay = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate());
+  const todayDay = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  if (todayDay <= dueDay) return 0;
+  return Math.round((todayDay - dueDay) / 86_400_000);
+}
+
+function addNaturalDays(value: Date, days: number): Date {
+  const next = new Date(value);
+  next.setUTCDate(next.getUTCDate() + Math.max(0, days));
+  return next;
+}
+
+function isPastDueDate(value: string | undefined, today: Date): boolean {
+  if (!value) return false;
+  return naturalDayDelay(new Date(value), today) > 0;
+}
+
+function hasDependency(dependencies: PlanDependency[], nodeId: string): boolean {
+  return dependencies.some((dependency) => dependency.fromNodeId === nodeId || dependency.toNodeId === nodeId);
 }
 
 function minDate(items: WorkPackage[]): string | undefined {
@@ -896,6 +1152,7 @@ function statusFromProgress(progress: number, shape: PlanNodeShape): string {
 async function recordQualitySnapshot(options: {
   plan: PlanModel;
   source: "BASELINE" | "DRAFT" | "APPLIED";
+  triggerType?: "MANUAL" | "TASK_PROGRESS_UPDATED" | "NODE_COMPLETED" | "MILESTONE_COMPLETED" | "BLOCKED_CHANGED" | "BLOCKED_RESOLVED" | "DELAY_CHANGED" | "DELAY_RESOLVED" | "IMPACT_PROPAGATED" | "PROJECT_COMPLETED";
   scenarioId?: string;
   baselineId?: string;
   createdByUserId?: string;
@@ -906,6 +1163,10 @@ async function recordQualitySnapshot(options: {
     progress: plan.progress,
     difficulty: plan.projectDifficulty,
     difficultyScore: plan.projectDifficultyScore,
+    blocked: plan.currentBlockedCount ?? 0,
+    delayed: plan.currentDelayCount ?? 0,
+    resolvedBlocked: plan.resolvedBlockedCount ?? 0,
+    maxDelayDays: plan.maxDelayDays ?? 0,
     phases: plan.phases.length,
     nodes: plan.nodes.length,
     taskItems: taskItemCount
@@ -918,6 +1179,10 @@ async function recordQualitySnapshot(options: {
       progress: plan.progress,
       difficulty: plan.projectDifficulty,
       difficultyScore: plan.projectDifficultyScore,
+      currentBlockedCount: plan.currentBlockedCount,
+      currentDelayCount: plan.currentDelayCount,
+      resolvedBlockedCount: plan.resolvedBlockedCount,
+      maxDelayDays: plan.maxDelayDays,
       startDate: plan.startDate,
       endDate: plan.endDate
     },
@@ -927,6 +1192,9 @@ async function recordQualitySnapshot(options: {
       progress: phase.progress,
       difficulty: phase.difficulty,
       difficultyScore: phase.difficultyScore,
+      blockedNodeCount: phase.blockedNodeCount,
+      delayNodeCount: phase.delayNodeCount,
+      maxDelayDays: phase.maxDelayDays,
       criticalPathRatio: phase.criticalPathRatio,
       riskRatio: phase.riskRatio,
       blockedRatio: phase.blockedRatio,
@@ -942,6 +1210,13 @@ async function recordQualitySnapshot(options: {
       progress: node.progress,
       difficulty: node.difficulty,
       difficultyScore: node.difficultyScore,
+      isBlocked: node.isBlocked,
+      blockedReason: node.blockedReason,
+      directDelayDays: node.directDelayDays,
+      propagatedDelayDays: node.propagatedDelayDays,
+      delayDays: node.delayDays,
+      delayReason: node.delayReason,
+      impactSourceNodeIds: node.impactSourceNodeIds,
       estimateHours: node.estimateHours,
       riskLevel: node.riskLevel,
       isBlocked: node.isBlocked,
@@ -956,6 +1231,7 @@ async function recordQualitySnapshot(options: {
     data: {
       projectId: plan.projectId,
       source: options.source,
+      triggerType: options.triggerType ?? "MANUAL",
       scenarioId: options.scenarioId,
       baselineId: options.baselineId,
       projectProgress: plan.progress,
@@ -1075,6 +1351,52 @@ function buildQualityMetrics(snapshotId: string, plan: PlanModel) {
   }
 
   return rows;
+}
+
+function snapshotTriggerFromChanges(
+  changes: PlanChangeInput[],
+  plan: PlanModel
+): "MANUAL" | "TASK_PROGRESS_UPDATED" | "NODE_COMPLETED" | "MILESTONE_COMPLETED" | "BLOCKED_CHANGED" | "BLOCKED_RESOLVED" | "DELAY_CHANGED" | "DELAY_RESOLVED" | "IMPACT_PROPAGATED" | "PROJECT_COMPLETED" {
+  if (plan.progress >= 100) return "PROJECT_COMPLETED";
+  for (const change of changes) {
+    const payload = change.payload ?? {};
+    if (payload.delayResolvedAt) return "DELAY_RESOLVED";
+    if (payload.delayDays || payload.delayReason || payload.delayStartedAt) return "DELAY_CHANGED";
+    if (payload.blockedResolvedAt) return "BLOCKED_RESOLVED";
+    if (payload.isBlocked || payload.blockedReason || payload.blockedStartedAt) return "BLOCKED_CHANGED";
+    if (change.type === "dependency.add") return "IMPACT_PROPAGATED";
+    if (change.type === "node.update") {
+      const node = plan.nodes.find((entry) => entry.id === change.targetRef);
+      if (node?.progress === 100) return node.shape === "milestone" ? "MILESTONE_COMPLETED" : "NODE_COMPLETED";
+      return "TASK_PROGRESS_UPDATED";
+    }
+    if (change.type === "task.upsert") return "TASK_PROGRESS_UPDATED";
+  }
+  return "MANUAL";
+}
+
+async function recordImpactEvents(plan: PlanModel) {
+  const rows = plan.nodes.flatMap((node) => {
+    if (!node.workPackageId || !node.impactSourceNodeIds?.length || !(node.propagatedDelayDays && node.propagatedDelayDays > 0)) {
+      return [];
+    }
+    return node.impactSourceNodeIds.flatMap((sourceNodeId) => {
+      const source = plan.nodes.find((entry) => entry.id === sourceNodeId);
+      if (!source?.workPackageId) return [];
+      return [{
+        projectId: plan.projectId,
+        sourceWorkPackageId: source.workPackageId,
+        impactedWorkPackageId: node.workPackageId as number,
+        dependencyPathJson: JSON.stringify([source.id, node.id]),
+        delayDays: node.propagatedDelayDays ?? 0,
+        reason: "上游依赖节点延期导致传播 delay"
+      }];
+    });
+  });
+
+  if (rows.length) {
+    await prisma.workPackageImpactEvent.createMany({ data: rows });
+  }
 }
 
 /* --------------------------- Persistence helpers --------------------------- */

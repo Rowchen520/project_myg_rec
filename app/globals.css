@@ -1467,6 +1467,27 @@ a:focus-visible,
   border-color: rgba(74, 222, 128, 0.36);
 }
 
+.screen-delivery-signal-list li.delay {
+  color: #fed7aa;
+  background: rgba(154, 52, 18, 0.34);
+  border-color: rgba(251, 146, 60, 0.45);
+}
+
+.screen-delivery-signal-list li.delay.propagated {
+  color: #e0e7ff;
+  background: rgba(49, 46, 129, 0.32);
+  border-color: rgba(129, 140, 248, 0.42);
+}
+
+.screen-delivery-signal-list li.absorbed,
+.screen-delivery-signal-list li.delay.propagated.absorbed,
+.screen-gantt-popover-tags li.absorbed,
+.screen-gantt-popover-tags li.dependency.absorbed {
+  color: #bbf7d0;
+  background: rgba(22, 101, 52, 0.34);
+  border-color: rgba(74, 222, 128, 0.55);
+}
+
 .screen-timeline {
   height: 780px;
   border-radius: 22px;
@@ -2015,34 +2036,61 @@ a:focus-visible,
   position: absolute;
   left: 0;
   top: 0;
-  z-index: 4;
+  /* Sit above hovered/selected node bars (z-index 30) so the line ends and
+     arrowheads stay visible when interacting with neighbouring nodes. */
+  z-index: 32;
   overflow: visible;
   pointer-events: none;
 }
 
+.screen-dependency-layer marker {
+  overflow: visible;
+}
+
 .screen-dependency-layer path {
   pointer-events: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
 }
 
 .screen-dependency-layer path.dependency {
-  stroke: rgba(148, 163, 184, 0.5);
-  stroke-width: 1.2;
-  stroke-dasharray: 4 5;
+  stroke: rgba(203, 213, 225, 0.78);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  filter: drop-shadow(0 0 1px rgba(15, 23, 42, 0.55));
 }
 
 .screen-dependency-layer path.critical {
-  stroke: rgba(248, 113, 113, 0.92);
-  stroke-width: 2;
-  filter: drop-shadow(0 0 3px rgba(248, 113, 113, 0.28));
+  stroke: rgba(248, 113, 113, 0.95);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 3px rgba(248, 113, 113, 0.3));
 }
 
 .screen-dependency-layer path.critical.inferred {
-  stroke-dasharray: 8 4;
+  stroke-dasharray: 6 4;
 }
 
 .screen-dependency-layer path.selected {
-  stroke-width: 2.6;
-  filter: drop-shadow(0 0 4px rgba(125, 211, 252, 0.58));
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px rgba(125, 211, 252, 0.6));
+}
+
+.screen-dependency-layer path.dependency.absorbed {
+  stroke: rgba(134, 239, 172, 0.96);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+  filter: drop-shadow(0 0 3px rgba(74, 222, 128, 0.35));
+}
+
+.screen-dependency-layer path.critical.absorbed {
+  stroke: rgba(134, 239, 172, 0.98);
+  stroke-width: 1.6;
+  stroke-dasharray: 0;
+  filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.45));
+}
+
+.screen-dependency-layer path.absorbed.selected {
+  filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.65));
 }
 
 .screen-zoom-toggle {
@@ -2277,7 +2325,7 @@ a:focus-visible,
 
 .screen-drawer-tasks li {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 50px 12px 22px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) 48px 10px 48px 54px minmax(0, 0.9fr) 22px;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
@@ -2302,6 +2350,23 @@ a:focus-visible,
 .screen-drawer-task-pct {
   font-size: 11px;
   color: #93c5fd;
+}
+
+.screen-drawer-task-delay {
+  text-align: center;
+}
+
+.screen-drawer-task-blocked {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: #fecaca;
+}
+
+.screen-drawer-task-blocked input {
+  width: 12px;
+  height: 12px;
 }
 
 .screen-drawer-task-remove {
@@ -3250,6 +3315,10 @@ a:focus-visible,
   border-color: rgba(251, 146, 60, 0.9);
 }
 
+.screen-gantt-task-bar[data-delay="true"] {
+  border-color: rgba(251, 146, 60, 0.9);
+}
+
 .screen-gantt-task-bar[data-dragging="true"] {
   cursor: grabbing;
   opacity: 0.92;
@@ -3452,6 +3521,12 @@ a:focus-visible,
   color: #cbd5e1;
   border-color: rgba(148, 163, 184, 0.48);
   background: rgba(51, 65, 85, 0.44);
+}
+
+.screen-gantt-popover-tags li.delay {
+  color: #fed7aa;
+  border-color: rgba(251, 146, 60, 0.45);
+  background: rgba(154, 52, 18, 0.34);
 }
 
 .screen-gantt-popover-tags li.blocked,

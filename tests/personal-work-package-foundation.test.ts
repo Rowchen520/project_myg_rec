@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => {
         update: vi.fn(),
         delete: vi.fn()
       },
+      workPackageProgressEvent: {
+        create: vi.fn()
+      },
       agentBreakdownDraft: {
         create: vi.fn(),
         findUnique: vi.fn()
@@ -190,6 +193,44 @@ describe("personal work package foundation", () => {
     expect(mocks.prisma.workPackage.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ projectId: "proj-ai-pm" })
+      })
+    );
+  });
+
+  it("records a progress event when an assignee updates task progress", async () => {
+    const { updateWorkPackage } = await import("@/lib/services/work-package-workflow");
+    mocks.prisma.workPackage.findUnique.mockResolvedValue(
+      storedWorkPackage({
+        id: 3,
+        projectId: "proj-ai-pm",
+        origin: "MANAGER",
+        createdByUserId: "u-pm",
+        assigneeId: "p2",
+        percentComplete: 20
+      })
+    );
+    mocks.prisma.workPackage.update.mockImplementation(async ({ data }: WorkPackageCreateMockArgs) =>
+      storedWorkPackage({
+        id: 3,
+        projectId: "proj-ai-pm",
+        origin: "MANAGER",
+        createdByUserId: "u-pm",
+        assigneeId: "p2",
+        percentComplete: data.percentComplete as number,
+        status: data.status
+      })
+    );
+
+    await updateWorkPackage(3, { percentComplete: 70, lastProgressNote: "推进到联调" }, participant);
+
+    expect(mocks.prisma.workPackageProgressEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          workPackageId: 3,
+          eventType: "PROGRESS_UPDATED",
+          userId: "u-member",
+          reason: "推进到联调"
+        })
       })
     );
   });

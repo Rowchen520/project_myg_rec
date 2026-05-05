@@ -376,6 +376,7 @@ export function TimelineCanvas({
               row={row}
               selectedId={selectedId}
               selectedPhaseId={selectedPhaseId}
+              linkMode={linkMode}
               editing={editing}
               onSelect={onSelect}
               onSelectPhase={onSelectPhase}
@@ -470,6 +471,7 @@ function NameCell({
   row,
   selectedId,
   selectedPhaseId,
+  linkMode,
   editing,
   onSelect,
   onSelectPhase,
@@ -480,6 +482,7 @@ function NameCell({
   row: GanttRow;
   selectedId?: string;
   selectedPhaseId?: string;
+  linkMode: LinkMode;
   editing: boolean;
   onSelect: (nodeId: string) => void;
   onSelectPhase: (phaseId: string) => void;
@@ -729,6 +732,7 @@ function TaskGanttBar({
 }) {
   const node = row.node;
   const barTop = row.top + (row.height - 24) / 2;
+  const hasActualDelay = (node.directDelayDays ?? node.delayDays ?? 0) > 0;
   // Progress is expressed as a percentage of the bar's *visual* width so it
   // stays in sync with the CSS `min-width` floor used to keep short tasks
   // readable. row.barWidth is still the authoritative date-driven length.
@@ -834,6 +838,7 @@ function TaskGanttBar({
       data-critical={node.isOnCriticalPath}
       data-risk={node.riskLevel}
       data-blocked={node.isBlocked || undefined}
+      data-delay={hasActualDelay || undefined}
       style={{
         transform: `translate3d(${row.barLeft}px, ${barTop}px, 0)`,
         width: row.barWidth,
@@ -870,6 +875,7 @@ function TaskGanttBar({
       <strong>{node.title}</strong>
       <small>{node.progress}%</small>
       {node.isBlocked ? <span className="screen-gantt-node-flag blocked">阻塞</span> : null}
+      {hasActualDelay ? <span className="screen-gantt-node-flag delay">Delay</span> : null}
       {node.riskLevel === "high" ? <span className="screen-gantt-node-flag risk">高风险</span> : null}
       {editing ? (
         <span
@@ -928,6 +934,17 @@ function NodePopover({
         {node.isOnCriticalPath ? <li className="critical">关键路径</li> : null}
         {node.riskLevel ? <li className={`risk ${node.riskLevel}`}>{riskLabel(node.riskLevel)}</li> : null}
         {node.isBlocked ? <li className="blocked">阻塞</li> : null}
+        {(node.directDelayDays ?? 0) > 0 ? <li className="delay">Delay +{node.directDelayDays}天</li> : null}
+        {(node.propagatedDelayDays ?? 0) > 0 ? (
+          <li className={`dependency${node.absorbedUpstreamDelay ? " absorbed" : ""}`}>
+            受依赖影响 +{node.propagatedDelayDays}天
+          </li>
+        ) : null}
+        {node.absorbedUpstreamDelay ? (
+          <li className="absorbed" title="本节点按原计划完成，已截断上游 Delay 传播">
+            不受依赖 Delay 影响
+          </li>
+        ) : null}
       </ul>
       {node.tasks.length === 0 ? (
         <p className="empty">{emptyText}</p>
@@ -1029,6 +1046,7 @@ function MilestoneMark({
 }) {
   const node = row.node;
   const center = timeline.dateToPixel(node.date);
+  const hasActualDelay = (node.directDelayDays ?? node.delayDays ?? 0) > 0;
   const SIZE = 20;
   return (
     <div
@@ -1040,6 +1058,7 @@ function MilestoneMark({
       data-critical={node.isOnCriticalPath}
       data-risk={node.riskLevel}
       data-blocked={node.isBlocked || undefined}
+      data-delay={hasActualDelay || undefined}
       style={{
         transform: `translate3d(${center - SIZE / 2}px, ${row.top + (row.height - SIZE) / 2}px, 0)`,
         width: SIZE,
@@ -1147,10 +1166,15 @@ function hitTestDependencyLine(
   let best: { key: string; distance: number } | undefined;
 
   for (const dependency of plan.dependencies) {
-    const from = dependencyPointFor(rowIndex, timeline, dependency.fromNodeId, "from");
-    const to = dependencyPointFor(rowIndex, timeline, dependency.toNodeId, "to");
-    if (!from || !to) continue;
-    const distance = distanceToDependencyCurve(from, to, { x, y });
+    const meta = dependencyMetaFor(
+      rowIndex,
+      timeline,
+      dependency.fromNodeId,
+      dependency.toNodeId
+    );
+    if (!meta) continue;
+    const shape = buildDependencyShape(meta);
+    const distance = distanceToShape(shape.segments, { x, y });
     if (distance > 10) continue;
     if (!best || distance < best.distance) {
       best = { key: `${dependency.fromNodeId}->${dependency.toNodeId}`, distance };
@@ -1160,40 +1184,108 @@ function hitTestDependencyLine(
   return best?.key;
 }
 
-function dependencyPointFor(
-  rowIndex: Map<string, GanttRow>,
-  timeline: TimelineWindow,
-  nodeId: string,
-  side: "from" | "to"
-) {
-  const row = rowIndex.get(nodeId);
-  if (!row || row.kind === "phase") return null;
-  const yCenter = row.top + row.height / 2;
-  if (row.kind === "task") {
-    const left = row.barLeft;
-    const right = row.barLeft + row.barWidth;
-    return { x: side === "from" ? right : left, y: yCenter };
-  }
-  const center = timeline.dateToPixel(row.node.date);
-  const half = 10;
-  return { x: side === "from" ? center + half : center - half, y: yCenter };
+/** Visible gap between the line endpoint and the node edge. Keeps the
+ * source dot and the arrow tip clear of the node body so the connection is
+ * obviously attached at both ends without being clipped or overlapped. */
+const DEPENDENCY_NODE_GAP = 6;
+/** Length of the horizontal stem leaving the source and entering the target. */
+const DEPENDENCY_STEM = 16;
+
+interface DepPoint {
+  x: number;
+  y: number;
 }
 
-function distanceToDependencyCurve(
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  point: { x: number; y: number }
-): number {
-  const direction = to.x >= from.x ? 1 : -1;
-  const dx = Math.max(28, Math.abs(to.x - from.x) / 2);
-  const c1 = { x: from.x + direction * dx, y: from.y };
-  const c2 = { x: to.x - direction * dx, y: to.y };
-  let previous = from;
-  let best = Number.POSITIVE_INFINITY;
-  for (let index = 1; index <= 24; index += 1) {
-    const current = cubicPoint(from, c1, c2, to, index / 24);
-    best = Math.min(best, distanceToSegment(point, previous, current));
+interface DepMeta {
+  from: DepPoint;
+  to: DepPoint;
+}
+
+interface DepShape {
+  d: string;
+  /** Polyline approximation of the path used by hit-testing. */
+  segments: Array<{ a: DepPoint; b: DepPoint }>;
+}
+
+/**
+ * Computes the line endpoints (with the visible gap) outside both bars so
+ * head and arrow markers stay clear of the node bodies.
+ */
+function dependencyMetaFor(
+  rowIndex: Map<string, GanttRow>,
+  timeline: TimelineWindow,
+  fromNodeId: string,
+  toNodeId: string
+): DepMeta | null {
+  const fromRow = rowIndex.get(fromNodeId);
+  const toRow = rowIndex.get(toNodeId);
+  if (!fromRow || !toRow) return null;
+  if (fromRow.kind === "phase" || toRow.kind === "phase") return null;
+
+  let sourceRight: number;
+  if (fromRow.kind === "task") {
+    sourceRight = fromRow.barLeft + fromRow.barWidth;
+  } else {
+    sourceRight = timeline.dateToPixel(fromRow.node.date) + 10;
+  }
+  let targetLeft: number;
+  if (toRow.kind === "task") {
+    targetLeft = toRow.barLeft;
+  } else {
+    targetLeft = timeline.dateToPixel(toRow.node.date) - 10;
+  }
+  const from: DepPoint = {
+    x: sourceRight + DEPENDENCY_NODE_GAP,
+    y: fromRow.top + fromRow.height / 2
+  };
+  const to: DepPoint = {
+    x: targetLeft - DEPENDENCY_NODE_GAP,
+    y: toRow.top + toRow.height / 2
+  };
+  return { from, to };
+}
+
+/**
+ * Always renders a smooth cubic Bezier with horizontal stems at both ends.
+ * Control points are pulled outward in the +x and -x directions so that:
+ *   - For "forward" deps (target right of source) we get the natural S-curve.
+ *   - For "backward / overlap" deps the curve sweeps in a wide arc; combined
+ *     with the dependency layer sitting above all node bars (z-index: 32) and
+ *     the visible end-gap, the curve may pass over node bodies but the head
+ *     and arrow always remain unobstructed.
+ */
+function buildDependencyShape(meta: DepMeta): DepShape {
+  const stem = DEPENDENCY_STEM;
+  const a: DepPoint = { x: meta.from.x + stem, y: meta.from.y };
+  const b: DepPoint = { x: meta.to.x - stem, y: meta.to.y };
+  const span = Math.abs(b.x - a.x);
+  const dx = Math.max(56, span * 0.55);
+  const c1: DepPoint = { x: a.x + dx, y: a.y };
+  const c2: DepPoint = { x: b.x - dx, y: b.y };
+
+  const segments: Array<{ a: DepPoint; b: DepPoint }> = [];
+  segments.push({ a: meta.from, b: a });
+  let previous: DepPoint = a;
+  for (let i = 1; i <= 24; i += 1) {
+    const current = cubicPoint(a, c1, c2, b, i / 24);
+    segments.push({ a: previous, b: current });
     previous = current;
+  }
+  segments.push({ a: b, b: meta.to });
+  const d =
+    `M${meta.from.x},${meta.from.y} L${a.x},${a.y}` +
+    ` C${c1.x},${c1.y} ${c2.x},${c2.y} ${b.x},${b.y}` +
+    ` L${meta.to.x},${meta.to.y}`;
+  return { d, segments };
+}
+
+function distanceToShape(
+  segments: Array<{ a: DepPoint; b: DepPoint }>,
+  point: DepPoint
+): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (const segment of segments) {
+    best = Math.min(best, distanceToSegment(point, segment.a, segment.b));
   }
   return best;
 }
@@ -1236,27 +1328,8 @@ function DependencyLayer({
   selectedDependencyKey?: string;
 }) {
   const rowIndex = new Map(timeline.rows.map((row) => [row.id, row] as const));
+  const nodeById = new Map(plan.nodes.map((node) => [node.id, node] as const));
   if (plan.dependencies.length === 0) return null;
-
-  function pointFor(nodeId: string, side: "from" | "to") {
-    const row = rowIndex.get(nodeId);
-    if (!row || row.kind === "phase") return null;
-    const yCenter = row.top + row.height / 2;
-    if (row.kind === "task") {
-      const left = row.barLeft;
-      const right = row.barLeft + row.barWidth;
-      return { x: side === "from" ? right : left, y: yCenter };
-    }
-    const center = timeline.dateToPixel(row.node.date);
-    const half = 10;
-    return { x: side === "from" ? center + half : center - half, y: yCenter };
-  }
-
-  function pathFor(from: { x: number; y: number }, to: { x: number; y: number }) {
-    const direction = to.x >= from.x ? 1 : -1;
-    const dx = Math.max(28, Math.abs(to.x - from.x) / 2);
-    return `M${from.x},${from.y} C${from.x + direction * dx},${from.y} ${to.x - direction * dx},${to.y} ${to.x},${to.y}`;
-  }
 
   return (
     <>
@@ -1266,40 +1339,130 @@ function DependencyLayer({
         height={timeline.totalHeight}
       >
         {plan.dependencies.map((dependency, index) => {
-          const from = pointFor(dependency.fromNodeId, "from");
-          const to = pointFor(dependency.toNodeId, "to");
-          if (!from || !to) return null;
+          const meta = dependencyMetaFor(
+            rowIndex,
+            timeline,
+            dependency.fromNodeId,
+            dependency.toNodeId
+          );
+          if (!meta) return null;
+          const shape = buildDependencyShape(meta);
           const dependencyKey = `${dependency.fromNodeId}->${dependency.toNodeId}`;
+          const sourceNode = nodeById.get(dependency.fromNodeId);
+          const absorbed = Boolean(sourceNode?.absorbedUpstreamDelay);
+          const baseClass = dependency.isCritical ? "critical" : "dependency";
+          const classes = [baseClass];
+          if (absorbed) classes.push("absorbed");
+          if (selectedDependencyKey === dependencyKey) classes.push("selected");
+          const markerEnd = absorbed
+            ? dependency.isCritical
+              ? "url(#screen-critical-absorbed-arrow)"
+              : "url(#screen-dep-absorbed-arrow)"
+            : dependency.isCritical
+              ? "url(#screen-critical-arrow)"
+              : "url(#screen-dep-arrow)";
+          const markerStart = absorbed
+            ? dependency.isCritical
+              ? "url(#screen-critical-absorbed-source)"
+              : "url(#screen-dep-absorbed-source)"
+            : dependency.isCritical
+              ? "url(#screen-critical-source)"
+              : "url(#screen-dep-source)";
           return (
             <path
               key={`dep-${index}-${dependency.fromNodeId}-${dependency.toNodeId}`}
-              className={`${dependency.isCritical ? "critical" : "dependency"}${selectedDependencyKey === dependencyKey ? " selected" : ""}`}
-              d={pathFor(from, to)}
+              className={classes.join(" ")}
+              d={shape.d}
               fill="none"
-              markerEnd={dependency.isCritical ? "url(#screen-critical-arrow)" : "url(#screen-dep-arrow)"}
+              markerStart={markerStart}
+              markerEnd={markerEnd}
             />
           );
         })}
         <defs>
+          {/* End arrows — refX equals markerWidth so the arrow tip lands
+              exactly on the path endpoint instead of poking past it. */}
           <marker
             id="screen-dep-arrow"
-            markerWidth={8}
-            markerHeight={8}
-            refX={6}
-            refY={4}
+            markerWidth={7}
+            markerHeight={7}
+            refX={7}
+            refY={3.5}
             orient="auto"
           >
-            <path d="M0,0 L8,4 L0,8 z" fill="rgba(148, 163, 184, 0.7)" />
+            <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 z" fill="rgba(226, 232, 240, 0.98)" />
           </marker>
           <marker
             id="screen-critical-arrow"
+            markerWidth={6}
+            markerHeight={6}
+            refX={6}
+            refY={3}
+            orient="auto"
+          >
+            <path d="M0,0 L6,3 L0,6 L1.3,3 z" fill="rgba(248, 113, 113, 0.98)" />
+          </marker>
+          <marker
+            id="screen-dep-absorbed-arrow"
+            markerWidth={7}
+            markerHeight={7}
+            refX={7}
+            refY={3.5}
+            orient="auto"
+          >
+            <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 z" fill="rgba(134, 239, 172, 0.98)" />
+          </marker>
+          <marker
+            id="screen-critical-absorbed-arrow"
+            markerWidth={6}
+            markerHeight={6}
+            refX={6}
+            refY={3}
+            orient="auto"
+          >
+            <path d="M0,0 L6,3 L0,6 L1.3,3 z" fill="rgba(134, 239, 172, 0.98)" />
+          </marker>
+          {/* Source dots — refX/refY at marker center so the dot is centered
+              on the line origin, just outside the source node. */}
+          <marker
+            id="screen-dep-source"
             markerWidth={5}
             markerHeight={5}
-            refX={4.2}
+            refX={2.5}
             refY={2.5}
             orient="auto"
           >
-            <path d="M0,0 L5,2.5 L0,5 z" fill="rgba(248, 113, 113, 0.88)" />
+            <circle cx={2.5} cy={2.5} r={1.8} fill="rgba(226, 232, 240, 0.98)" />
+          </marker>
+          <marker
+            id="screen-critical-source"
+            markerWidth={5}
+            markerHeight={5}
+            refX={2.5}
+            refY={2.5}
+            orient="auto"
+          >
+            <circle cx={2.5} cy={2.5} r={2} fill="rgba(248, 113, 113, 0.98)" />
+          </marker>
+          <marker
+            id="screen-dep-absorbed-source"
+            markerWidth={5}
+            markerHeight={5}
+            refX={2.5}
+            refY={2.5}
+            orient="auto"
+          >
+            <circle cx={2.5} cy={2.5} r={1.8} fill="rgba(134, 239, 172, 0.98)" />
+          </marker>
+          <marker
+            id="screen-critical-absorbed-source"
+            markerWidth={5}
+            markerHeight={5}
+            refX={2.5}
+            refY={2.5}
+            orient="auto"
+          >
+            <circle cx={2.5} cy={2.5} r={2} fill="rgba(134, 239, 172, 0.98)" />
           </marker>
         </defs>
       </svg>

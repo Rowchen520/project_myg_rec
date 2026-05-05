@@ -79,6 +79,15 @@ export interface StoredWorkPackage {
   estimateHours: number | null;
   percentComplete: number;
   lastProgressNote: string;
+  blockedReason?: string | null;
+  blockedStartedAt?: Date | null;
+  blockedResolvedAt?: Date | null;
+  delayReason?: string | null;
+  delayDays?: number;
+  delayStartedAt?: Date | null;
+  delayResolvedAt?: Date | null;
+  progressUpdatedByUserId?: string | null;
+  completedAt?: Date | null;
   dependencies: string;
   requiredSkills: string;
   isOnCriticalPath: boolean;
@@ -239,6 +248,15 @@ export function mapWorkPackage(workPackage: StoredWorkPackage): WorkPackage {
     estimateHours: workPackage.estimateHours ?? undefined,
     percentComplete: workPackage.percentComplete,
     lastProgressNote: workPackage.lastProgressNote,
+    blockedReason: workPackage.blockedReason ?? undefined,
+    blockedStartedAt: workPackage.blockedStartedAt?.toISOString(),
+    blockedResolvedAt: workPackage.blockedResolvedAt?.toISOString(),
+    delayReason: workPackage.delayReason ?? undefined,
+    delayDays: workPackage.delayDays ?? 0,
+    delayStartedAt: workPackage.delayStartedAt?.toISOString(),
+    delayResolvedAt: workPackage.delayResolvedAt?.toISOString(),
+    progressUpdatedByUserId: workPackage.progressUpdatedByUserId ?? undefined,
+    completedAt: workPackage.completedAt?.toISOString(),
     dependencies: parseNumberArray(workPackage.dependencies),
     requiredSkills: parseStringArray(workPackage.requiredSkills),
     isOnCriticalPath: workPackage.isOnCriticalPath,
