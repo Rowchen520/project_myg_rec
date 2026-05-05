@@ -1,0 +1,472 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum WorkPackageType {
+  TASK
+  MILESTONE
+  RISK
+  PHASE
+}
+
+enum Priority {
+  P0
+  P1
+  P2
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum Difficulty {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  ARCHIVED
+}
+
+enum PlatformRole {
+  ADMIN
+  PROJECT_MANAGER
+  PARTICIPANT
+}
+
+enum WorkPackageOrigin {
+  SELF
+  AI_SELF
+  MANAGER
+  IM_IMPORT
+}
+
+enum WorkPackageCommentType {
+  COMMENT
+  DECISION
+  BLOCKER
+  EVIDENCE
+}
+
+enum WorkPackageCommentSource {
+  PLATFORM
+  FEISHU
+  WECOM_BOT
+  DINGTALK
+  SLACK
+  EMAIL
+  GENERIC
+}
+
+enum WorkPackageApprovalStatus {
+  PENDING
+  APPROVED
+  CHANGES_REQUESTED
+}
+
+enum NotificationChannelType {
+  FEISHU
+  WECOM_BOT
+  DINGTALK
+  SLACK
+  EMAIL
+  GENERIC
+}
+
+enum NotificationDeliveryStatus {
+  PREVIEW
+  SENT
+  SKIPPED
+  FAILED
+}
+
+enum AgentBreakdownDraftStatus {
+  PENDING
+  CONFIRMED
+  DISCARDED
+}
+
+model Person {
+  id           String                @id @default(cuid())
+  name         String
+  role         String
+  capacity     Int
+  skills       String                @default("[]")
+  workPackages WorkPackage[]         @relation("AssignedWorkPackages")
+  users        User[]
+  comments     WorkPackageComment[]
+  approvals    WorkPackageApproval[]
+}
+
+model Project {
+  id                   String                @id @default(cuid())
+  identifier           String                @unique
+  name                 String
+  description          String?
+  parentId             String?
+  parent               Project?              @relation("ProjectHierarchy", fields: [parentId], references: [id])
+  children             Project[]             @relation("ProjectHierarchy")
+  status               ProjectStatus         @default(ACTIVE)
+  health               RiskLevel             @default(MEDIUM)
+  initialDifficulty    Difficulty            @default(MEDIUM)
+  difficultyOverride   Difficulty?
+  progress             Int                   @default(0)
+  startDate            DateTime?
+  endDate              DateTime?
+  enabledModules       String                @default("[]")
+  workPackages         WorkPackage[]
+  memberships          ProjectMembership[]
+  stewardMessages      StewardMessage[]
+  notificationRules    NotificationRule[]
+  agentBreakdownDrafts AgentBreakdownDraft[]
+  qualitySnapshots     ProjectQualitySnapshot[]
+  qualityMetrics       ProjectQualityMetric[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@index([parentId])
+}
+
+model User {
+  id                   String                @id @default(cuid())
+  name                 String
+  role                 PlatformRole
+  personId             String
+  person               Person                @relation(fields: [personId], references: [id])
+  memberships          ProjectMembership[]
+  agentBreakdownDrafts AgentBreakdownDraft[]
+  agentApiKeys         AgentApiKey[]
+  agentInvocations     AgentToolInvocation[] @relation("CallerUserInvocations")
+  createdWorkPackages  WorkPackage[]         @relation("CreatedWorkPackages")
+  createdAt            DateTime              @default(now())
+}
+
+model ProjectMembership {
+  id        String  @id @default(cuid())
+  userId    String
+  projectId String
+  isLead    Boolean @default(false)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+model WorkPackage {
+  id               Int                   @id @default(autoincrement())
+  projectId        String?
+  type             WorkPackageType       @default(TASK)
+  subject          String
+  description      String                @default("")
+  status           String                @default("todo")
+  priority         Priority              @default(P1)
+  difficulty       Difficulty            @default(MEDIUM)
+  origin           WorkPackageOrigin     @default(MANAGER)
+  createdByUserId  String
+  assigneeId       String?
+  parentId         Int?
+  parent           WorkPackage?          @relation("WorkPackageHierarchy", fields: [parentId], references: [id])
+  children         WorkPackage[]         @relation("WorkPackageHierarchy")
+  startDate        DateTime?
+  dueDate          DateTime?
+  estimateHours    Int?
+  percentComplete  Int                   @default(0)
+  lastProgressNote String                @default("")
+  dependencies     String                @default("[]")
+  requiredSkills   String                @default("[]")
+  isOnCriticalPath Boolean               @default(false)
+  riskLevel        RiskLevel?
+  riskImpact       String?
+  riskMitigation   String?
+  project          Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy        User                  @relation("CreatedWorkPackages", fields: [createdByUserId], references: [id])
+  assignee         Person?               @relation("AssignedWorkPackages", fields: [assigneeId], references: [id])
+  comments         WorkPackageComment[]
+  approvals        WorkPackageApproval[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([projectId, type])
+  @@index([projectId, status])
+  @@index([createdByUserId])
+  @@index([assigneeId])
+  @@index([parentId])
+}
+
+model WorkPackageComment {
+  id                String                   @id @default(cuid())
+  workPackageId     Int
+  authorPersonId    String
+  body              String
+  type              WorkPackageCommentType
+  mentionsPersonIds String                   @default("[]")
+  source            WorkPackageCommentSource @default(PLATFORM)
+  sourceChannelId   String?
+  externalMessageId String?
+  externalThreadId  String?
+  authorDisplayName String?
+  workPackage       WorkPackage              @relation(fields: [workPackageId], references: [id], onDelete: Cascade)
+  author            Person                   @relation(fields: [authorPersonId], references: [id])
+  createdAt         DateTime                 @default(now())
+
+  @@unique([source, externalMessageId])
+  @@index([workPackageId, createdAt])
+}
+
+model WorkPackageApproval {
+  id               String                    @id @default(cuid())
+  workPackageId    Int
+  reviewerPersonId String
+  status           WorkPackageApprovalStatus
+  comment          String
+  workPackage      WorkPackage               @relation(fields: [workPackageId], references: [id], onDelete: Cascade)
+  reviewer         Person                    @relation(fields: [reviewerPersonId], references: [id])
+  createdAt        DateTime                  @default(now())
+
+  @@index([workPackageId, createdAt])
+}
+
+model StewardMessage {
+  id        String    @id @default(cuid())
+  projectId String?
+  type      String
+  title     String
+  body      String
+  level     RiskLevel
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+}
+
+model NotificationChannel {
+  id                String                    @id @default(cuid())
+  name              String
+  type              NotificationChannelType
+  target            String
+  enabled           Boolean                   @default(true)
+  audienceRoles     String                    @default("[]")
+  audiencePersonIds String                    @default("[]")
+  secret            String?
+  note              String?
+  rules             NotificationRuleChannel[]
+  deliveries        NotificationDelivery[]
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+}
+
+model NotificationRule {
+  id            String                    @id @default(cuid())
+  projectId     String?
+  name          String
+  eventTypes    String                    @default("[]")
+  minLevel      RiskLevel
+  audienceRoles String                    @default("[]")
+  project       Project?                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channels      NotificationRuleChannel[]
+  deliveries    NotificationDelivery[]
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+}
+
+model NotificationRuleChannel {
+  ruleId    String
+  channelId String
+  rule      NotificationRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  channel   NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@id([ruleId, channelId])
+}
+
+model NotificationDelivery {
+  id             String                     @id @default(cuid())
+  channelId      String
+  ruleId         String
+  notificationId String
+  status         NotificationDeliveryStatus
+  preview        String
+  payloadJson    String                     @default("{}")
+  audienceRoles  String                     @default("[]")
+  channel        NotificationChannel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  rule           NotificationRule           @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  createdAt      DateTime                   @default(now())
+}
+
+model PlatformFeatureFlag {
+  key           String   @id
+  siteEnabled   Boolean  @default(true)
+  roleOverrides String   @default("{}")
+  description   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AgentApiKey {
+  id             String                @id @default(cuid())
+  name           String
+  keyPrefix      String                @unique
+  hashedKey      String
+  allowedTools   String                @default("[]")
+  allowedRoles   String                @default("[]")
+  qpsLimit       Int                   @default(5)
+  dailyLimit     Int                   @default(1000)
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdByUserId String
+  createdBy      User                  @relation(fields: [createdByUserId], references: [id])
+  invocations    AgentToolInvocation[]
+  createdAt      DateTime              @default(now())
+}
+
+model AgentToolInvocation {
+  id                 String       @id @default(cuid())
+  toolName           String
+  callerUserId       String?
+  callerApiKeyId     String?
+  source             String       @default("rest")
+  inputJson          String       @default("{}")
+  outputJson         String       @default("{}")
+  status             String
+  errorMessage       String?
+  idempotencyKey     String?
+  parentInvocationId String?
+  durationMs         Int          @default(0)
+  callerUser         User?        @relation("CallerUserInvocations", fields: [callerUserId], references: [id])
+  callerApiKey       AgentApiKey? @relation(fields: [callerApiKeyId], references: [id])
+  createdAt          DateTime     @default(now())
+
+  @@index([toolName, createdAt])
+  @@index([callerUserId, createdAt])
+  @@index([callerApiKeyId, createdAt])
+  @@unique([idempotencyKey, toolName])
+}
+
+model AgentBreakdownDraft {
+  id              String                    @id @default(cuid())
+  projectId       String?
+  createdByUserId String
+  prompt          String
+  analysisJson    String
+  status          AgentBreakdownDraftStatus @default(PENDING)
+  project         Project?                  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy       User                      @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+}
+
+enum ScheduleScenarioStatus {
+  DRAFT
+  PROPOSED
+  APPLIED
+  DISCARDED
+}
+
+enum QualitySnapshotSource {
+  BASELINE
+  DRAFT
+  APPLIED
+}
+
+model ScheduleBaseline {
+  id              String             @id @default(cuid())
+  projectId       String
+  version         Int
+  snapshotJson    String
+  appliedByUserId String?
+  appliedAt       DateTime           @default(now())
+  scenarios       ScheduleScenario[]
+  createdAt       DateTime           @default(now())
+
+  @@unique([projectId, version])
+  @@index([projectId, appliedAt])
+}
+
+model ScheduleScenario {
+  id              String                 @id @default(cuid())
+  projectId       String
+  baselineId      String?
+  name            String
+  status          ScheduleScenarioStatus @default(DRAFT)
+  draftJson       String
+  agentSummary    String?
+  createdByUserId String
+  appliedAt       DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  baseline        ScheduleBaseline?      @relation(fields: [baselineId], references: [id], onDelete: SetNull)
+  changes         ScheduleChange[]
+
+  @@index([projectId, status])
+  @@index([projectId, updatedAt])
+}
+
+model ScheduleChange {
+  id          String           @id @default(cuid())
+  scenarioId  String
+  changeType  String
+  targetRef   String
+  payloadJson String           @default("{}")
+  createdAt   DateTime         @default(now())
+  scenario    ScheduleScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId, createdAt])
+}
+
+model ProjectQualitySnapshot {
+  id                String                 @id @default(cuid())
+  projectId         String
+  source            QualitySnapshotSource
+  scenarioId        String?
+  baselineId        String?
+  projectProgress   Int
+  projectDifficulty Difficulty
+  startDate         DateTime?
+  endDate           DateTime?
+  phaseCount        Int
+  nodeCount         Int
+  taskItemCount     Int
+  metricJson        String                 @default("{}")
+  aiContextJson     String                 @default("{}")
+  createdByUserId   String?
+  createdAt         DateTime               @default(now())
+  project           Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  metrics           ProjectQualityMetric[]
+
+  @@index([projectId, createdAt])
+  @@index([projectId, source, createdAt])
+  @@index([scenarioId])
+  @@index([baselineId])
+}
+
+model ProjectQualityMetric {
+  id              String                 @id @default(cuid())
+  snapshotId      String
+  projectId       String
+  entityType      String
+  entityRef       String
+  metricKey       String
+  numericValue    Float?
+  textValue       String?
+  difficultyValue Difficulty?
+  startDate       DateTime?
+  endDate         DateTime?
+  personId        String?
+  teamRef         String?
+  evidenceJson    String                 @default("{}")
+  createdAt       DateTime               @default(now())
+  snapshot        ProjectQualitySnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  project         Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId])
+  @@index([projectId, entityType, metricKey])
+  @@index([personId, metricKey])
+  @@index([teamRef, metricKey])
+}

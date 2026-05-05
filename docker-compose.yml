@@ -1,0 +1,26 @@
+services:
+  project-myg:
+    image: ${DOCKER_IMAGE:-yuguang822/project-myg:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: project-myg
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:/app/data/prod.db
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    volumes:
+      - project_myg_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "scripts/health-check.mjs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  project_myg_data:
