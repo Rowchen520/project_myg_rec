@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "prisma generate && next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.mjs",
-    "health": "node scripts/health-check.mjs"
+    "health": "node scripts/health-check.mjs",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"

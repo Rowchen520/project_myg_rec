@@ -16,12 +16,16 @@ OpenProject 风格的 AI 项目管理平台原型，提供项目层级、统一�
 
 ## 本地运行
 
+首次安装会通过 `postinstall` 自动执行 `prisma generate`；`npm run dev` 和 `npm run build` 也会在启动前重新生成 Prisma Client。
+
 ```bash
 npm install
 npm run db:push
 npm run db:seed
 npm run dev
 ```
+
+如果本地曾清理过 `node_modules` 或遇到 Prisma Client 缺失报错，可以单独执行一次 `npx prisma generate`。
 
 访问 `http://localhost:3000`，会重定向到 `/my/page`。
 
