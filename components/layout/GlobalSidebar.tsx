@@ -76,10 +76,12 @@ const items: GlobalNavItem[] = [
  */
 export function GlobalSidebar({
   flags = [],
-  currentUser
+  currentUser,
+  unreadNotificationCount = 0
 }: {
   flags?: PlatformFeatureFlagDto[];
   currentUser?: User;
+  unreadNotificationCount?: number;
 }) {
   const pathname = usePathname();
   const visibleItems = items.filter(
@@ -102,6 +104,25 @@ export function GlobalSidebar({
               >
                 <span className="sidebar-link__icon">{item.icon}</span>
                 {item.label}
+                {item.href === "/notifications" && unreadNotificationCount > 0 ? (
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      minWidth: 18,
+                      height: 18,
+                      padding: "0 5px",
+                      borderRadius: 999,
+                      background: "#d1242f",
+                      color: "#ffffff",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      lineHeight: "18px",
+                      textAlign: "center"
+                    }}
+                  >
+                    {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

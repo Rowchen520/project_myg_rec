@@ -13,7 +13,7 @@ interface ProjectLayoutProps {
 
 export default async function ProjectLayout({ params, children }: ProjectLayoutProps) {
   const { identifier } = await params;
-  const { snapshot, currentUser } = await getShellRequestContext();
+  const { snapshot, currentUser, unreadNotificationCount } = await getShellRequestContext();
 
   const project = snapshot.projects.find((item) => item.identifier === identifier);
   if (!project) {
@@ -24,6 +24,7 @@ export default async function ProjectLayout({ params, children }: ProjectLayoutP
     <AppShell
       projects={snapshot.projects}
       currentUser={currentUser}
+      unreadNotificationCount={unreadNotificationCount}
       currentProjectIdentifier={identifier}
       sidebar={<ProjectSidebar project={project} />}
     >

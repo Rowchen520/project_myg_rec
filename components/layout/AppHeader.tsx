@@ -8,13 +8,14 @@ interface AppHeaderProps {
   projects: Project[];
   currentProjectIdentifier?: string;
   currentUser?: User;
+  unreadNotificationCount?: number;
 }
 
 /**
  * Application top bar. Composition mirrors OpenProject 16.x: brand + project
  * switcher on the left, command/notification/profile cluster on the right.
  */
-export function AppHeader({ projects, currentProjectIdentifier, currentUser }: AppHeaderProps) {
+export function AppHeader({ projects, currentProjectIdentifier, currentUser, unreadNotificationCount = 0 }: AppHeaderProps) {
   return (
     <header className="app-header">
       <Link href="/" className="app-header__brand" aria-label="返回工作台首页">
@@ -53,16 +54,44 @@ export function AppHeader({ projects, currentProjectIdentifier, currentUser }: A
           data-variant="ghost"
           data-size="sm"
           data-icon-only="true"
-          aria-label="通知中心"
+          aria-label={unreadNotificationCount > 0 ? `通知中心，${unreadNotificationCount} 条未读消息` : "通知中心"}
           title="通知"
         >
-          <BellIcon />
+          <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <BellIcon />
+            {unreadNotificationCount > 0 ? (
+              <span
+                style={{
+                  position: "absolute",
+                  top: -7,
+                  right: -10,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 4px",
+                  borderRadius: 999,
+                  background: "#d1242f",
+                  color: "#ffffff",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: "16px",
+                  textAlign: "center",
+                  boxShadow: "0 0 0 2px var(--bg-default)"
+                }}
+              >
+                {formatUnreadCount(unreadNotificationCount)}
+              </span>
+            ) : null}
+          </span>
         </Link>
         <span className="app-header__divider" aria-hidden="true" style={{ marginLeft: 4, marginRight: 4 }} />
         <UserMenu currentUser={currentUser} />
       </div>
     </header>
   );
+}
+
+function formatUnreadCount(count: number) {
+  return count > 99 ? "99+" : String(count);
 }
 
 function SearchIcon() {

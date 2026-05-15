@@ -1,287 +1,244 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/primer/Badge";
 import { Button } from "@/components/primer/Button";
 import { EmptyState } from "@/components/primer/EmptyState";
 import { Surface } from "@/components/primer/Surface";
-import { getChannelTypeLabel } from "@/lib/notifications/channels";
-import { buildDeliveries, markDeliveriesAsSent } from "@/lib/notifications/router";
 import { riskLevelTone } from "@/lib/work-package-presentation";
-import type {
-  NotificationChannel,
-  NotificationDelivery,
-  NotificationRule,
-  StewardMessage,
-  User
-} from "@/lib/types";
+import type { NotificationReviewRequest, User, UserNotification } from "@/lib/types";
 
 interface NotificationCenterViewProps {
-  channels: NotificationChannel[];
-  rules: NotificationRule[];
-  stewardMessages: StewardMessage[];
+  notifications: UserNotification[];
+  pendingReviews: NotificationReviewRequest[];
   currentUser?: User;
-  canManage: boolean;
 }
 
-/**
- * Notification center: lists steward-driven deliveries, the routing rules,
- * and the available channels. The audit pane is the focus, with channel
- * and rule context surfaced in compact cards above.
- */
-export function NotificationCenterView({
-  channels,
-  rules,
-  stewardMessages,
-  currentUser,
-  canManage
-}: NotificationCenterViewProps) {
-  const [localChannels, setLocalChannels] = useState(channels);
-  const [deliveries, setDeliveries] = useState<NotificationDelivery[]>(() =>
-    buildDeliveries(stewardMessages, channels, rules, {
-      viewerRole: currentUser?.role
-    })
+type NotificationViewTab = "inbox" | "pendingReviews";
+
+export function NotificationCenterView({ notifications, pendingReviews, currentUser }: NotificationCenterViewProps) {
+  const router = useRouter();
+  const [items, setItems] = useState(notifications);
+  const [reviewItems, setReviewItems] = useState(pendingReviews);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<NotificationViewTab>("inbox");
+  const markableUnreadCount = useMemo(
+    () => items.filter((item) => !item.readAt && !isLockedReviewNotification(item)).length,
+    [items]
   );
-  const [expandedDeliveryId, setExpandedDeliveryId] = useState<string | null>(null);
 
-  function toggleChannel(channelId: string) {
-    if (!canManage) return;
-    setLocalChannels((current) => {
-      const next = current.map((channel) =>
-        channel.id === channelId ? { ...channel, enabled: !channel.enabled } : channel
+  async function markAllRead() {
+    if (!currentUser || busy || markableUnreadCount === 0) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({})
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? "一键已读失败。");
+      }
+
+      const now = new Date().toISOString();
+      setItems((current) =>
+        current.map((item) =>
+          !item.readAt && !isLockedReviewNotification(item)
+            ? { ...item, readAt: now }
+            : item
+        )
       );
-      setDeliveries(
-        buildDeliveries(stewardMessages, next, rules, {
-          viewerRole: currentUser?.role
-        })
-      );
-      return next;
-    });
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "一键已读失败。");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function simulateSend(delivery: NotificationDelivery) {
-    setDeliveries((current) => [
-      ...markDeliveriesAsSent([delivery]),
-      ...current.filter((item) => item.id !== delivery.id)
-    ]);
-  }
+  async function completeReview(reviewId: string, status: "approved" | "rejected") {
+    if (busy) {
+      return;
+    }
 
-  function simulateSendAll() {
-    setDeliveries((current) => markDeliveriesAsSent(current));
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/notifications/reviews/${reviewId}/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? "提交审核失败。");
+      }
+
+      const now = new Date().toISOString();
+      setReviewItems((current) => current.filter((item) => item.id !== reviewId));
+      setItems((current) =>
+        current.map((item) =>
+          item.source === "notification-review-request" && item.payload?.reviewRequestId === reviewId
+            ? { ...item, readAt: item.readAt ?? now }
+            : item
+        )
+      );
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "提交审核失败。");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: 16
-        }}
-      >
-        <Surface
-          title="通讯通道"
-          description={canManage ? "可启用或停用通道。" : "仅管理员可调整。"}
-          flush
-        >
-          {localChannels.length === 0 ? (
-            <div style={{ padding: 16 }}>
-              <EmptyState title="当前用户没有可见的通道" />
-            </div>
-          ) : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 8, display: "grid", gap: 4 }}>
-              {localChannels.map((channel) => (
+    <Surface
+      title={activeTab === "inbox" ? `收件箱 (${items.length})` : `待审核 (${reviewItems.length})`}
+      description={
+        currentUser
+          ? activeTab === "inbox"
+            ? "这里展示当前用户收到的普通通知和审核结果消息；待处理的审核请求已单独收口到“待审核”。"
+            : "待审核只展示当前用户仍需处理的审核请求，审核完成后会自动从列表移除。"
+          : "登录后可查看通知中心消息。"
+      }
+      actions={
+        currentUser ? (
+          activeTab === "inbox" ? (
+            <Button size="sm" variant="primary" disabled={busy || markableUnreadCount === 0} onClick={markAllRead}>
+              {busy ? "处理中..." : `一键已读${markableUnreadCount ? ` (${markableUnreadCount})` : ""}`}
+            </Button>
+          ) : null
+        ) : null
+      }
+      flush
+    >
+      {error ? <p style={{ color: "var(--danger-fg)", margin: "0 16px", fontSize: 12 }}>{error}</p> : null}
+      {currentUser ? (
+        <div style={{ display: "flex", gap: 8, padding: 16, paddingBottom: 0, flexWrap: "wrap" }}>
+          <Button size="sm" variant={activeTab === "inbox" ? "primary" : "ghost"} onClick={() => setActiveTab("inbox")}>
+            收件箱
+          </Button>
+          <Button size="sm" variant={activeTab === "pendingReviews" ? "primary" : "ghost"} onClick={() => setActiveTab("pendingReviews")}>
+            待审核{reviewItems.length ? ` (${reviewItems.length})` : ""}
+          </Button>
+        </div>
+      ) : null}
+      {!currentUser ? (
+        <div style={{ padding: 16 }}>
+          <EmptyState title="当前未登录" description="登录后才能查看通知中心消息。" />
+        </div>
+      ) : activeTab === "inbox" && items.length === 0 ? (
+        <div style={{ padding: 16 }}>
+          <EmptyState
+            title="暂无消息"
+            description="业务操作触发站内通知后，会在这里按时间倒序展示。"
+          />
+        </div>
+      ) : activeTab === "pendingReviews" && reviewItems.length === 0 ? (
+        <div style={{ padding: 16 }}>
+          <EmptyState
+            title="暂无待审核消息"
+            description="新的审核请求到达后，会在这里集中展示，必须处理后才会从未读中消失。"
+          />
+        </div>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {activeTab === "inbox"
+            ? items.map((notification, index) => (
                 <li
-                  key={channel.id}
+                  key={notification.id}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    background: "var(--bg-subtle)",
-                    overflow: "hidden"
+                    padding: "12px 16px",
+                    borderTop: index === 0 ? undefined : "1px solid var(--border-muted)",
+                    display: "grid",
+                    gap: 6,
+                    background: notification.readAt ? undefined : "var(--bg-subtle)"
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: 13 }}>{channel.name}</strong>
-                    <p
-                      className="hint mono"
-                      style={{
-                        margin: "2px 0 0",
-                        fontSize: 11,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap"
-                      }}
-                    >
-                      {getChannelTypeLabel(channel.type)} · {channel.target.replace(/^https?:\/\//, "")}
-                    </p>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+                    <div style={{ display: "grid", gap: 4, minWidth: 0, flex: "1 1 260px" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <Badge tone={riskLevelTone(notification.level)}>{notification.level}</Badge>
+                        <Badge tone={notification.readAt ? "default" : "accent"}>{notification.readAt ? "已读" : "未读"}</Badge>
+                        <Badge tone={notification.source === "notification-review-result" ? "success" : "default"}>
+                          {notification.source === "notification-review-result"
+                              ? "审核结果"
+                              : "通知消息"}
+                        </Badge>
+                        <strong style={{ fontSize: 13 }}>{notification.title}</strong>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 13, color: "var(--fg-default)" }}>{notification.body}</p>
+                      <p className="hint" style={{ margin: 0, fontSize: 11 }}>
+                        来源 {notification.source} · {formatTimestamp(notification.createdAt)}
+                        {notification.readAt ? ` · 已读于 ${formatTimestamp(notification.readAt)}` : ""}
+                      </p>
+                    </div>
+                    {notification.link ? (
+                      <a href={notification.link} className="btn" data-size="sm" data-variant="ghost">
+                        查看详情
+                      </a>
+                    ) : null}
                   </div>
-                  <Button
-                    size="sm"
-                    variant={channel.enabled ? "success" : "default"}
-                    disabled={!canManage}
-                    onClick={() => toggleChannel(channel.id)}
-                    style={{ flexShrink: 0 }}
-                  >
-                    {channel.enabled ? "已启用" : "未启用"}
-                  </Button>
                 </li>
-              ))}
-            </ul>
-          )}
-        </Surface>
-
-        <Surface
-          title="路由规则"
-          description="事件类型 + 最小风险等级决定推送通道。"
-          flush
-        >
-          {rules.length === 0 ? (
-            <div style={{ padding: 16 }}>
-              <EmptyState title="无可见规则" />
-            </div>
-          ) : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 8, display: "grid", gap: 4 }}>
-              {rules.map((rule) => (
+              ))
+            : reviewItems.map((review, index) => (
                 <li
-                  key={rule.id}
+                  key={review.id}
                   style={{
-                    padding: 10,
-                    borderRadius: 8,
+                    padding: "12px 16px",
+                    borderTop: index === 0 ? undefined : "1px solid var(--border-muted)",
+                    display: "grid",
+                    gap: 8,
                     background: "var(--bg-subtle)"
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                    <strong style={{ fontSize: 13 }}>{rule.name}</strong>
-                    <Badge tone={riskLevelTone(rule.minLevel)}>≥ {rule.minLevel}</Badge>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+                    <div style={{ display: "grid", gap: 4, minWidth: 0, flex: "1 1 260px" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <Badge tone="attention">待审核</Badge>
+                        <strong style={{ fontSize: 13 }}>{review.title}</strong>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 13, color: "var(--fg-default)" }}>{review.body}</p>
+                      <p className="hint" style={{ margin: 0, fontSize: 11 }}>
+                        创建于 {formatTimestamp(review.createdAt)} · 审核完成后会自动标记原审核消息为已读
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <Button size="sm" variant="success" disabled={busy} onClick={() => completeReview(review.id, "approved")}>
+                        通过
+                      </Button>
+                      <Button size="sm" variant="danger" disabled={busy} onClick={() => completeReview(review.id, "rejected")}>
+                        驳回
+                      </Button>
+                      {review.link ? (
+                        <a href={review.link} className="btn" data-size="sm" data-variant="ghost">
+                          查看详情
+                        </a>
+                      ) : null}
+                    </div>
                   </div>
-                  <p className="hint" style={{ margin: "6px 0 2px", fontSize: 11 }}>
-                    事件 {rule.eventTypes.join(" · ")}
-                  </p>
-                  <p className="hint" style={{ margin: 0, fontSize: 11 }}>
-                    通道 {rule.channelIds
-                      .map((id) => localChannels.find((channel) => channel.id === id)?.name)
-                      .filter(Boolean)
-                      .join(" / ") || "无可见通道"}
-                  </p>
                 </li>
               ))}
-            </ul>
-          )}
-        </Surface>
-      </div>
-
-      <Surface
-        title={`投递审计 (${deliveries.length})`}
-        description="按 AI 管家与项目事件模拟向通道的投递负载。"
-        actions={
-          deliveries.length > 0 ? (
-            <Button size="sm" variant="primary" onClick={simulateSendAll} disabled={!canManage}>
-              一键模拟投递
-            </Button>
-          ) : null
-        }
-        flush
-      >
-        {deliveries.length === 0 ? (
-          <div style={{ padding: 16 }}>
-            <EmptyState
-              title="暂无可投递的消息"
-              description="可先运行 AI 诊断或在工作项触发风险后再来查看。"
-            />
-          </div>
-        ) : (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-            {deliveries.map((delivery, index) => (
-              <li
-                key={delivery.id}
-                style={{
-                  padding: "12px 16px",
-                  borderTop: index === 0 ? undefined : "1px solid var(--border-muted)"
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    alignItems: "flex-start",
-                    flexWrap: "wrap"
-                  }}
-                >
-                  <div style={{ minWidth: 0, flex: "1 1 240px" }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <Badge
-                        tone={
-                          delivery.status === "sent"
-                            ? "success"
-                            : delivery.status === "failed"
-                              ? "danger"
-                              : "default"
-                        }
-                      >
-                        {deliveryStatusLabel(delivery.status)}
-                      </Badge>
-                      <strong style={{ fontSize: 13 }}>{delivery.notification.title}</strong>
-                    </div>
-                    <p className="hint" style={{ margin: "4px 0 0", fontSize: 12 }}>
-                      {delivery.preview}
-                    </p>
-                    <p className="hint" style={{ margin: "4px 0 0", fontSize: 11 }}>
-                      通道 {delivery.channelName} · 规则 {delivery.ruleName}
-                    </p>
-                  </div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      disabled={!canManage || delivery.status === "sent"}
-                      onClick={() => simulateSend(delivery)}
-                    >
-                      模拟发送
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        setExpandedDeliveryId((current) => (current === delivery.id ? null : delivery.id))
-                      }
-                    >
-                      {expandedDeliveryId === delivery.id ? "收起" : "查看负载"}
-                    </Button>
-                  </div>
-                </div>
-                {expandedDeliveryId === delivery.id ? (
-                  <pre
-                    style={{
-                      marginTop: 10,
-                      padding: 10,
-                      background: "var(--bg-muted)",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      maxHeight: 240,
-                      overflow: "auto",
-                      lineHeight: 1.6,
-                      fontFamily: "var(--font-mono)"
-                    }}
-                  >
-                    {JSON.stringify(delivery.payload, null, 2)}
-                  </pre>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Surface>
-    </div>
+        </ul>
+      )}
+    </Surface>
   );
 }
 
-function deliveryStatusLabel(status: NotificationDelivery["status"]) {
-  if (status === "sent") return "已发送";
-  if (status === "failed") return "失败";
-  if (status === "skipped") return "跳过";
-  return "预览";
+function formatTimestamp(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN");
 }

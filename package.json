@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "prisma generate && next dev",
+    "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
@@ -13,12 +13,13 @@
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.mjs",
     "health": "node scripts/health-check.mjs",
-    "postinstall": "prisma generate"
+    "notifications:reminders": "node scripts/send-overdue-notification-reminders.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"
   },
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.63.1",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "better-sqlite3": "^12.9.0",

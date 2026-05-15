@@ -35,6 +35,10 @@ export interface StoredUser {
   role: string;
   personId: string;
   memberships: StoredMembership[];
+  feishuBinding?: {
+    openId: string;
+    revokedAt?: Date | null;
+  } | null;
 }
 
 export interface StoredPerson {
@@ -191,6 +195,7 @@ const KNOWN_MODULES: ProjectModule[] = [
 export function mapUser(user: StoredUser): User {
   return {
     id: user.id,
+    openId: user.feishuBinding?.revokedAt ? undefined : user.feishuBinding?.openId,
     name: user.name,
     role: mapPlatformRole(user.role),
     personId: user.personId,

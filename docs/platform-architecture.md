@@ -113,9 +113,10 @@ app/
     projects/page.tsx                       # 所有项目（层级树）；总览不再走这里
     projects/new/page.tsx                   # 创建项目
     work-packages/page.tsx                  # 跨项目工作项
-    notifications/page.tsx                  # 通知中心
+    notifications/page.tsx                  # [已落地] 通知中心站内收件箱
     admin/page.tsx                          # 管理员区
     admin/feature-flags/page.tsx            # [已落地] 平台模块开关（站点级 + 角色级覆盖）
+    admin/notifications/page.tsx            # [已落地] 通讯通道 + 路由规则配置
     admin/users/page.tsx                    # [TODO] 用户列表 + 角色集分配 + 团队归属（来自飞书显示只读，可手动覆盖）
     admin/teams/page.tsx                    # [TODO] 团队层级树 + 创建 / 编辑 / 同步状态
     admin/teams/[id]/page.tsx               # [TODO] 团队详情 + 成员管理
@@ -144,6 +145,8 @@ app/
     assistant/route.ts                      # AI 拆解草稿（projectId 可空 = 个人草稿）[已落地]
     agent-workflow/confirm/route.ts         # 草稿确认 → WorkPackage（个人草稿 → AI_SELF 个人工作项）[已落地]
     im-comment/route.ts                     # 外部 IM 评论回流
+    notifications/route.ts                  # [已落地] GET 当前用户收件箱 / POST 向指定用户发送站内通知 / PATCH 标记已读
+    feishu/robot/route.ts                   # [已落地] GET 机器人状态 / POST 按业务传入 title、body 发送飞书卡片
     steward/route.ts                        # AI 管家进展摘要
     overview/route.ts                       # [已落地] GET 平台总览数据（每项目 KPI 聚合）
     overview/screen/route.ts                # [已落地] GET 大屏看板数据（阶段+任务+里程碑+关键路径）
@@ -415,19 +418,27 @@ classDiagram
 | `[TODO]` MyTeamWorkInbox | `components/team-lead/MyTeamWorkInbox.tsx` | `WorkPackage[]` | 团队负责人的「我团队的工作项」区块（在 My Page 内显示），按"待核对 / 进行中 / 已完成"分组 |
 | AIDiagnosisPanel | `components/ai/AIDiagnosisPanel.tsx` | `ProjectDiagnosis` | AI 诊断模块 |
 | AIBreakdownWorkspace | `components/ai/AIBreakdownWorkspace.tsx` | `Project`, `User?` | 项目 AI 拆解模块 |
-| NotificationCenterView | `components/notifications/NotificationCenterView.tsx` | `Channel[]`, `Rule[]`, `StewardMessage[]` | 通知中心 |
+| `[已落地]` NotificationCenterView | `components/notifications/NotificationCenterView.tsx` | `UserNotification[]`, `User?` | 通知中心站内收件箱（已读/未读 + 一键已读） |
+| `[已落地]` NotificationSettingsView | `components/admin/NotificationSettingsView.tsx` | `NotificationChannel[]`, `NotificationRule[]` | 管理员查看通讯通道与路由规则 |
 | Primer 原子 | `components/primer/*` | — | Button / Input / Select / Textarea / Badge / Surface / Drawer / EmptyState |
 
 ## 6. 关键服务
 
 - `lib/services/workspace.ts`：单一入口加载工作区快照（含项目层级 / WorkPackage / 通知配置 / Steward 消息），失败回退到 `lib/sample-data.ts`。
-- `lib/services/auth-context.ts`：路由处理器内的角色解析，依赖 `x-user-id` 头。
-- `lib/services/auth-server.ts`：服务端组件读取当前用户（基于 cookie，由 `UserMenu` 写入）。
+- `lib/services/auth-context.ts`：路由处理器内的角色解析；当前优先按 session / `x-open-id` 识别用户，并兼容历史 `x-user-id`。
+- `lib/services/auth-server.ts`：服务端组件读取当前用户（基于 cookie；飞书登录成功后当前写入的是 `open_id`，再映射回内部用户）。
 - `lib/services/project-workflow.ts`：项目创建 / 更新 / 模块开关。
 - `lib/services/work-package-workflow.ts`：工作项创建 / 更新 / 评论 / 签核 / 删除。`[已落地]` `projectId` 接受 `null`（个人事项），`createdByUserId` 必填，删除按「创建者本人 + 管理员」校验。
 - `lib/services/agent-breakdown.ts`：AI 草稿生成与确认（确认后写入 `WorkPackage` 表）。`[已落地]` `projectId` 可空，个人草稿确认后写为 `projectId=null` + `origin=AI_SELF` 的个人工作项。
 - `lib/intelligence/*`：Health / Reminders / Scheduling / Diagnosis 四件套，全部基于新 `WorkPackage` 模型。
 - `lib/notifications/*`：Channel 适配 + 路由规则匹配 + 投递构建。
+- `[已落地]` `lib/services/user-notifications.ts`：站内通知收件箱服务；提供按用户查询消息、向指定用户批量发送通知，以及按用户将消息标记为已读。发送侧支持 `recipientOpenIds`，会先映射飞书绑定再落内部 `user.id`；查询侧通过 `UserNotification.recipient` 关系回表补充 `recipientOpenId`。此外，服务端会汇总当前用户未读数供顶部/侧栏展示；超一天未读飞书提醒仅由独立定时入口扫描触发，并记录提醒时间避免重复发送。
+- `[已落地]` 审核消息与普通通知在通知中心内已分流：待处理的 `notification-review-request` 不再进入收件箱，而是只通过待审核视图展示当前用户仍需处理的 `NotificationReviewRequest`；收件箱仅保留普通通知与审核结果消息。批量“一键已读”会主动排除审核请求消息，只有在审核完成时才会自动把原审核消息回写为已读。
+- `[已落地]` 顶部与侧栏红点的未读汇总已切到业务语义口径：按“普通未读 `UserNotification`（排除审核请求镜像消息） + 待审核 `NotificationReviewRequest`”聚合，确保待审核也计入红点且不重复统计。
+- `[已落地]` `components/layout/UnreadNotificationAutoRefresh.tsx`：通知未读红点自动刷新器；登录态下会周期性执行 `router.refresh()`，并在窗口重新聚焦或标签页重新可见时立即刷新，避免头部/侧栏未读红点停留在首屏快照。
+- `[已落地]` `app/api/notifications/reminders/overdue/route.ts` + `scripts/send-overdue-notification-reminders.mjs`：受 `NOTIFICATION_REMINDER_CRON_TOKEN` 保护的定时入口；可由系统计划任务或外部调度器按计划扫描全量用户的超时未读消息，并发送飞书卡片提醒。
+- `[已落地]` `NotificationReviewRequest` + `app/api/notifications/reviews/**`：审核消息闭环接口；业务可向审核人 A 发起审核请求，A 提交审核结果后，系统自动把结果以站内通知回发给被审核用户。
+- `[已落地]` `FeishuDepartmentTreeSnapshot.departmentOptionsJson / excludedDepartmentIdsJson` + `PATCH /api/feishu/departments`：部门树同步设置；管理员可在“同步部门树”按钮下方配置下次同步要屏蔽的部门，服务端在真正同步时按 `open_department_id` 跳过这些部门及其子部门。
 - `[已落地]` `lib/services/platform-overview.ts`：聚合服务。输入「当前用户可见项目集」，输出 `ProjectOverviewMetric[]` + 顶部全局 KPI（总项目 / 总工作项 / 高风险项目 / 逾期数 / 阻塞数 / 即将到期里程碑数）。复用 `lib/steward.ts` 与工作区快照，不引入新数据源。
 - `[已落地]` `lib/services/feature-flags.ts`：读写 `PlatformFeatureFlag`，提供 `isModuleEnabledForUser(moduleKey, user)` 工具，被 `MyWorkbench` / 全局侧边栏 / 各 `/my/*` 路由 SSR 调用以决定渲染与否。
 - `[已落地]` `lib/services/launch-preferences.ts`：以 cookie 形式记忆「上次选择的项目」与「是否跳过启动页」，给 `/` 重定向逻辑使用。
@@ -438,7 +449,7 @@ classDiagram
 - `[已落地]` `lib/agent/invoke.ts`：统一执行管道（鉴权 → RBAC + FeatureFlag → schema 校验 → idempotency → handler → 审计 → 序列化）。SDK / REST 共用同一管道，MCP 本期保留壳子。
 - `[已落地预留壳]` `scripts/mcp-server.ts` + `app/api/mcp/[transport]/route.ts`：本期仅返回未实现提示和契约文档链接，不接 Tool Registry。
 - `[已落地]` `lib/agent/audit.ts`：审计日志写入；提供 `recordInvocation()`，支持按 `parentInvocationId` 串联后续 Skill 子调用。
-- `[已落地]` `lib/agent/auth.ts`：双轨鉴权——用户登录态（cookie + `x-user-id`，AI 代用户操作）与 `AgentApiKey`（机器调用）；解析后注入统一的 `AgentCallContext`。
+- `[已落地]` `lib/agent/auth.ts`：双轨鉴权——用户登录态（cookie + `x-open-id`，兼容历史 `x-user-id`，AI 代用户操作）与 `AgentApiKey`（机器调用）；解析后注入统一的 `AgentCallContext`。
 - `[TODO]` `lib/agent/skills/registry.ts`：Skill 加载器，启动时从数据库读取所有 `published` Skill 并注册为 Tool `skill.<slug>`，由 `Tool Registry` 统一暴露；Skill 的 `inputSchema` 直接映射为 Tool 的 `inputSchema`。
 - `[TODO]` `lib/agent/skills/engine.ts`：Skill 执行引擎。按 `steps` 顺序执行：每一步通过 JSONata 表达式（`lib/agent/skills/expr.ts`）从 `formInput` + 累计的 `stepOutputs` 计算出入参，调用对应 Tool；支持 `branch`（条件分支）、`transform`（纯映射，不调用 Tool）、`ai-prompt`（占位，后期接 LLM）三种节点类型；写入 `SkillExecution` + 一组带 `parentInvocationId` 的 `AgentToolInvocation`。
 - `[TODO]` `lib/agent/skills/permissions.ts`：Skill 权限解析。`canExecuteSkill(user, skill)` 判定 = `requiredPermissions ⊂ user.permissions` ∧ (`allowedRoles` 含当前角色 ∨ `allowedUserIds` 含当前用户)；`canManageSkills(user)` 判定 = 仅 admin。
@@ -491,7 +502,7 @@ UI 完全切换到 OpenProject 16.x 的 [Primer Design System](https://primer.st
 - [x] `/projects/[id]/work-packages` 是「表格 + 右侧详情抽屉」的 split-screen 布局。
 - [x] 工作项详情可更新进展、写评论、签核（基于服务端 API）。
 - [x] AI 诊断 / 拆解作为项目侧边栏独立菜单项。
-- [x] 通知中心独立路由可达。
+- [x] 通知中心独立路由可达，现已收口为站内收件箱。
 - [x] `npm run lint` / `npm run test` / `npm run build` 通过。
 - [x] `[已落地 PWP-7/8]` `/my/page` 提供「+ 新建工作项」入口；`/my/work-packages/new` 提供完整表单，可选项目，也可留空为个人事项。
 - [x] `[已落地 PWP-9]` `/my/breakdown` 可输入需求 → AI 拆出候选 → 用户增删/编辑后写入「我的工作台」。
@@ -526,7 +537,7 @@ UI 完全切换到 OpenProject 16.x 的 [Primer Design System](https://primer.st
 - [ ] `[TODO PWP-46]` 团队负责人在被分配为 assignee 创建工作项时自动 `requiresVerification=true`；assignee（团队成员）能看到「提交完成」按钮，提交后状态变 `SELF_REPORTED_DONE`。
 - [ ] `[TODO PWP-47]` 团队负责人在工作项详情看到 `VerificationPanel`，能 pass / reject + 留驳回原因；驳回时 `status` 回滚到 `in_progress`、`verificationStatus=REJECTED`、自动通知 assignee。
 - [ ] `[TODO PWP-48]` 团队负责人 My Page 显示「我团队的工作项」收件箱，按"待核对 / 进行中 / 已完成"分组，待核对默认置顶。
-- [ ] `[TODO PWP-49]` 飞书同步：管理员在 `/admin/integrations/feishu` 配置 `appId/secret` 与同步频率，「立即同步」可手动触发；同步会 upsert 团队 + 成员 + 自动给部门负责人加 `TEAM_LEAD`，并尊重 `manualOverride`。
+- [ ] `[TODO PWP-49]` 飞书同步：管理员在 `/admin/integrations/feishu` 配置 `appId/secret` 与同步频率，「立即同步」可手动触发；同步会 upsert 团队 + 成员 + 自动给部门负责人加 `TEAM_LEAD`，并尊重 `manualOverride`。当前已完成第一步：`/admin` 用户板块支持读取持久化部门树缓存，并可手动触发飞书部门树同步。
 - [ ] `[TODO PWP-50]` `/admin/users` 提供角色集编辑：管理员可对任意非自己用户增删 `PROJECT_MANAGER` / `PARTICIPANT` / `TEAM_LEAD` / `ADMIN`；至少保留一个 `ADMIN` 防自锁；调用方必须持 `manageUserRoles`。
 - [ ] `[TODO PWP-52]` 文档完成一次体系级重构审查：明确「普通员工 / 团队负责人 / 项目经理 / 管理员」四类角色门户、能力边界、AI 可用范围与页面复杂度上限。
 - [ ] `[TODO PWP-53]` `WorkPackage` 增加 AI 难度评估字段：难度等级、复杂度分数、不确定性、估时可信度、AI 评估理由、人工覆盖字段；AI 拆解与 Skill 执行写入这些字段。
@@ -566,7 +577,7 @@ UI 完全切换到 OpenProject 16.x 的 [Primer Design System](https://primer.st
 | PWP-18 | 侧边栏：`GlobalSidebar` 调整顺序为 Launch → My Page → Platform Overview → Projects → Work Packages → Notifications → Administration；按 FeatureFlag 与角色隐藏入口 | `components/layout/GlobalSidebar.tsx`、`components/layout/sidebar-icons.tsx` | 已落地 |
 | PWP-19 | Prisma 迁移：新增 `PlatformFeatureFlag` 表（`key` PK / `siteEnabled` Bool / `roleOverrides` Json / `description` String）；seed 默认条目 `personalWorkPackage` / `personalAgentBreakdown` / `personalNotifications` / `platformOverview` / `launchPage` 全部 `siteEnabled=true` | `prisma/schema.prisma`、迁移脚本、`prisma/seed.mjs` | 已落地 |
 | PWP-20 | 服务 + UI：`lib/services/feature-flags.ts` + `app/(global)/admin/feature-flags/page.tsx` + `app/api/feature-flags/route.ts`；新增 RBAC `managePlatformFeatureFlags`（仅 admin）与 `viewPlatformOverview`（默认全开） | `lib/services/feature-flags.ts`、`app/(global)/admin/feature-flags/**`、`app/api/feature-flags/route.ts`、`lib/rbac.ts` | 已落地 |
-| PWP-21 | UI：`MyWorkbench` 接入 FeatureFlag，对个人事项 / 个人 AI 拆解 / 个人通知三块按用户可见性隐藏；同时新增「我的通知」区块（最近 N 条 `NotificationDelivery` × 当前用户） | `app/(global)/my/page/page.tsx`、`components/notifications/MyNotificationsPanel.tsx` | 已落地 |
+| PWP-21 | UI：`MyWorkbench` 接入 FeatureFlag，对个人事项 / 个人 AI 拆解 / 个人通知三块按用户可见性隐藏；同时新增「我的通知」区块（最近 N 条 `UserNotification` × 当前用户，带已读/未读状态） | `app/(global)/my/page/page.tsx`、`components/notifications/MyNotificationsPanel.tsx` | 已落地 |
 | PWP-22 | 测试：单测覆盖 platform-overview 聚合正确性、feature-flags 角色级覆盖、launch-preferences 重定向；E2E 覆盖 /launch 选择 → /overview KPI 渲染 → admin 关闭模块后入口消失 | `tests/**`、`e2e/smoke.spec.ts` | 已落地 |
 | PWP-23 | Prisma 迁移：`Project.startDate / endDate DateTime?`；`WorkPackage.isOnCriticalPath Bool @default(false)`；seed 加示例 PHASE/MILESTONE 数据用于大屏演示 | `prisma/schema.prisma`、迁移脚本、`prisma/seed.mjs` | 已落地 |
 | PWP-24 | 服务：`lib/services/big-screen.ts` 装配 `BigScreenViewModel`（项目元数据 + 阶段树 + 里程碑 + 关键路径集合 + 今日时间戳 + 阶段统计）；`lib/intelligence/critical-path.ts` 关键路径计算（依赖 + dueDate + parentId） | `lib/services/big-screen.ts`、`lib/intelligence/critical-path.ts` | 已落地 |

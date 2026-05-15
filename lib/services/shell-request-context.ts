@@ -1,10 +1,12 @@
 import { cache } from "react";
 import { getCurrentUserFromSession } from "@/lib/services/auth-server";
+import { getUserNotificationSummary } from "@/lib/services/user-notifications";
 import { loadWorkspaceSnapshot, type WorkspaceSnapshotResult } from "@/lib/services/workspace";
 import type { User } from "@/lib/types";
 
 export interface ShellRequestContext extends WorkspaceSnapshotResult {
   currentUser: User | undefined;
+  unreadNotificationCount: number;
 }
 
 /**
@@ -13,6 +15,9 @@ export interface ShellRequestContext extends WorkspaceSnapshotResult {
  */
 export const getShellRequestContext = cache(async (): Promise<ShellRequestContext> => {
   const currentUser = await getCurrentUserFromSession();
-  const workspace = await loadWorkspaceSnapshot({ userId: currentUser?.id });
-  return { ...workspace, currentUser };
+  const [workspace, notificationSummary] = await Promise.all([
+    loadWorkspaceSnapshot({ userId: currentUser?.id }),
+    currentUser ? getUserNotificationSummary(currentUser.id) : Promise.resolve({ unreadCount: 0 })
+  ]);
+  return { ...workspace, currentUser, unreadNotificationCount: notificationSummary.unreadCount };
 });

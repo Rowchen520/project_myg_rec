@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { mapUser, type StoredUser } from "@/lib/repositories/workspace-mappers";
 import type { User } from "@/lib/types";
+import { resolveStoredUserByIdentity } from "@/lib/services/auth-context";
 
 export interface AgentAuthContext {
   user: User;
@@ -24,7 +25,7 @@ export function generateAgentApiKey() {
 }
 
 /**
- * Resolves a REST request into a user context, supporting x-user-id or Bearer API key.
+ * Resolves a REST request into a user context, supporting x-open-id / x-user-id or Bearer API key.
  */
 export async function resolveAgentAuthFromRequest(request: Request): Promise<AgentAuthContext> {
   const authorization = request.headers.get("authorization");
@@ -58,13 +59,10 @@ export async function resolveAgentAuthFromRequest(request: Request): Promise<Age
     };
   }
 
-  const userId = request.headers.get("x-user-id") ?? "u-pm";
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { memberships: true }
-  });
+  const identity = request.headers.get("x-open-id") ?? request.headers.get("x-user-id") ?? "u-pm";
+  const user = await resolveStoredUserByIdentity(identity);
   if (!user) {
-    throw new Error("未找到当前用户，请提供有效的 x-user-id。");
+    throw new Error("未找到当前用户，请提供有效的 x-open-id 或 x-user-id。");
   }
 
   return { user: mapUser(user as StoredUser), source: "rest:user" };

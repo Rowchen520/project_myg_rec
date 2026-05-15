@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { roleLabels } from "@/lib/rbac";
 import type { User } from "@/lib/types";
 
@@ -22,6 +22,8 @@ const DEMO_ACCOUNTS: Array<{ id: string; name: string; role: User["role"] }> = [
  */
 export function UserMenu({ currentUser }: UserMenuProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -49,6 +51,19 @@ export function UserMenu({ currentUser }: UserMenuProps) {
     }
     router.refresh();
   }
+
+  async function signOut() {
+    setOpen(false);
+    try {
+      await fetch("/api/session", { method: "DELETE" });
+    } catch {
+      // ignore network errors and still refresh to surface the login gate
+    }
+    window.location.assign("/my/page");
+  }
+
+  const redirectTo = searchParams?.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+  const feishuLoginHref = `/api/auth/feishu/login?redirectTo=${encodeURIComponent(redirectTo || "/")}`;
 
   const initial = currentUser?.name.slice(0, 1) ?? "?";
   const title = currentUser
@@ -133,9 +148,59 @@ export function UserMenu({ currentUser }: UserMenuProps) {
               </button>
             ))}
           </div>
+          <hr className="divider" />
+          {currentUser ? (
+            <>
+              <p className="sidebar-section-title" style={{ padding: "4px 10px 4px", marginBottom: 2 }}>
+                账号
+              </p>
+              <a href="/my/feishu" className="sidebar-link" style={{ textDecoration: "none" }}>
+                <span className="sidebar-link__icon">
+                  <FeishuIcon />
+                </span>
+                <span style={{ flex: 1 }}>飞书账号设置</span>
+              </a>
+              <button
+                type="button"
+                className="sidebar-link"
+                onClick={signOut}
+                style={{ border: "none", background: undefined, textAlign: "left" }}
+              >
+                <span className="sidebar-link__icon">
+                  <ExitIcon />
+                </span>
+                <span style={{ flex: 1 }}>退出登录</span>
+              </button>
+              <hr className="divider" />
+            </>
+          ) : null}
+          <p className="sidebar-section-title" style={{ padding: "4px 10px 4px", marginBottom: 2 }}>
+            企业登录
+          </p>
+          <a
+            href={feishuLoginHref}
+            className="sidebar-link"
+            style={{ textDecoration: "none" }}
+          >
+            <span className="sidebar-link__icon">
+              <FeishuIcon />
+            </span>
+            <span style={{ flex: 1 }}>一键飞书登录</span>
+          </a>
         </div>
       ) : null}
     </div>
+  );
+}
+
+function FeishuIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M4.25 2.5H8.1C9.536 2.5 10.7 3.664 10.7 5.1V8.95C10.7 10.386 9.536 11.55 8.1 11.55H4.25V2.5ZM11.75 4.45H12.3C13.2941 4.45 14.1 5.25589 14.1 6.25V11.75C14.1 12.7441 13.2941 13.55 12.3 13.55H6.8C5.80589 13.55 5 12.7441 5 11.75V11.2H8.1C10.4537 11.2 12.35 9.30374 12.35 6.95V4.45H11.75Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }
 
@@ -151,6 +216,15 @@ function DotIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <circle cx="8" cy="8" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ExitIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M6 2.75H3.75C3.19772 2.75 2.75 3.19772 2.75 3.75V12.25C2.75 12.8023 3.19772 13.25 3.75 13.25H6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M9 5.25L12 8M12 8L9 10.75M12 8H5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

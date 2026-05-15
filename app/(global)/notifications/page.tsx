@@ -1,13 +1,18 @@
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { NotificationCenterView } from "@/components/notifications/NotificationCenterView";
-import { can } from "@/lib/rbac";
 import { getShellRequestContext } from "@/lib/services/shell-request-context";
+import { listInboxUserNotifications, listPendingNotificationReviewRequests } from "@/lib/services/user-notifications";
 
 export const dynamic = "force-dynamic";
 
 export default async function NotificationsPage() {
-  const { snapshot, currentUser } = await getShellRequestContext();
-  const canManage = currentUser ? can(currentUser.role, "manageNotifications") : false;
+  const { currentUser } = await getShellRequestContext();
+  const [notifications, pendingReviews] = currentUser
+    ? await Promise.all([
+        listInboxUserNotifications(currentUser.id, 100),
+        listPendingNotificationReviewRequests(currentUser.id)
+      ])
+    : [[], []];
 
   return (
     <>
@@ -16,16 +21,14 @@ export default async function NotificationsPage() {
         <div className="page-header__meta">
           <h1 className="page-title">通知中心</h1>
           <p className="page-subtitle">
-            统一查看 AI 管家与项目事件向飞书 / 企业微信 / 钉钉 / 邮件等通道的投递记录。
+            统一接收业务操作发送到当前用户的站内消息。
           </p>
         </div>
       </header>
       <NotificationCenterView
-        channels={snapshot.notificationChannels}
-        rules={snapshot.notificationRules}
-        stewardMessages={snapshot.stewardMessages}
+        notifications={notifications}
+        pendingReviews={pendingReviews}
         currentUser={currentUser}
-        canManage={canManage}
       />
     </>
   );

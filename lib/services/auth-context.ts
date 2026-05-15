@@ -1,7 +1,9 @@
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { mapUser, type StoredUser } from "@/lib/repositories/workspace-mappers";
 import type { PlatformRole, User } from "@/lib/types";
+import { SESSION_COOKIE_NAME } from "./session-cookie";
 
 export interface AuthContext {
   user: User;
@@ -17,18 +19,48 @@ export class ServiceError extends Error {
 }
 
 /**
- * Builds a lightweight auth context for the MVP from the `x-user-id` header.
- * Replace this with a real session provider when SSO or account auth is added.
+ * Resolves a platform user by either internal user id or Feishu open_id.
+ * open_id is the canonical external identity; user id remains the internal relation key.
+ */
+export async function resolveStoredUserByIdentity(identity: string): Promise<StoredUser | null> {
+  return (await prisma.user.findFirst({
+    where: {
+      OR: [
+        { id: identity },
+        { feishuBinding: { is: { openId: identity, revokedAt: null } } }
+      ]
+    },
+    include: {
+      memberships: true,
+      feishuBinding: {
+        select: {
+          openId: true,
+          revokedAt: true
+        }
+      }
+    }
+  })) as StoredUser | null;
+}
+
+/**
+ * Builds a lightweight auth context for the MVP from the active session cookie,
+ * preferring open_id as external identity and falling back to legacy `x-user-id`.
  */
 export async function getAuthContextFromRequest(request: Request): Promise<AuthContext> {
-  const userId = request.headers.get("x-user-id") ?? "u-pm";
-  const user = (await prisma.user.findUnique({
-    where: { id: userId },
-    include: { memberships: true }
-  })) as StoredUser | null;
+  const cookieStore = await cookies();
+  const identity =
+    cookieStore.get(SESSION_COOKIE_NAME)?.value ??
+    request.headers.get("x-open-id") ??
+    request.headers.get("x-user-id");
+
+  if (!identity) {
+    throw new ServiceError("当前请求未登录。", 401);
+  }
+
+  const user = await resolveStoredUserByIdentity(identity);
 
   if (!user) {
-    throw new ServiceError("未找到当前用户，请提供有效的 x-user-id。", 401);
+    throw new ServiceError("未找到当前用户，请提供有效的 open_id 或 userId。", 401);
   }
 
   return { user: mapUser(user) };

@@ -46,7 +46,7 @@ export async function getWorkspaceSnapshotFromRepository(
   })) as StoredUser[];
   const currentUser = options.userId
     ? users.find((user) => user.id === options.userId)
-    : users[0];
+    : undefined;
   const visibleProjectIds = resolveVisibleProjectIds(users, currentUser, options.projectId);
   const workPackageWhere = resolveVisibleWorkPackageWhere(
     currentUser,

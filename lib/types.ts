@@ -57,6 +57,7 @@ export type WorkPackageApprovalStatus = "pending" | "approved" | "changesRequest
 
 export interface User {
   id: string;
+  openId?: string;
   name: string;
   role: PlatformRole;
   personId: string;
@@ -232,6 +233,39 @@ export interface NotificationDelivery {
   audienceRoles: PlatformRole[];
   notification: UnifiedNotification;
   createdAt: string;
+}
+
+export interface UserNotification {
+  id: string;
+  recipientUserId: string;
+  recipientOpenId?: string;
+  title: string;
+  body: string;
+  level: NotificationLevel;
+  source: string;
+  link?: string;
+  payload?: Record<string, unknown>;
+  readAt?: string;
+  unreadReminderSentAt?: string;
+  createdAt: string;
+}
+
+export type NotificationReviewStatus = "pending" | "approved" | "rejected";
+
+export interface NotificationReviewRequest {
+  id: string;
+  requesterUserId: string;
+  reviewerUserId: string;
+  reviewedUserId: string;
+  title: string;
+  body: string;
+  link?: string;
+  payload?: Record<string, unknown>;
+  status: NotificationReviewStatus;
+  resultComment?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ProjectHealthScore {

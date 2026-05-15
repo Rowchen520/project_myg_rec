@@ -1,9 +1,8 @@
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
-import { mapUser, type StoredUser } from "@/lib/repositories/workspace-mappers";
 import type { User } from "@/lib/types";
-
-const COOKIE_NAME = "pm-active-user-id";
+import { mapUser } from "@/lib/repositories/workspace-mappers";
+import { resolveStoredUserByIdentity } from "./auth-context";
+import { SESSION_COOKIE_NAME } from "./session-cookie";
 
 /**
  * Resolves the current user inside a Next.js Server Component / Route handler
@@ -11,25 +10,21 @@ const COOKIE_NAME = "pm-active-user-id";
  */
 export async function getCurrentUserFromSession(): Promise<User | undefined> {
   const cookieStore = await cookies();
-  const cookieUserId = cookieStore.get(COOKIE_NAME)?.value;
+  const cookieIdentity = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  if (!cookieIdentity) {
+    return undefined;
+  }
 
   try {
-    const user = (await prisma.user.findFirst({
-      where: cookieUserId ? { id: cookieUserId } : undefined,
-      include: { memberships: true },
-      orderBy: { createdAt: "asc" }
-    })) as StoredUser | null;
+    const user = await resolveStoredUserByIdentity(cookieIdentity);
 
     if (user) {
       return mapUser(user);
     }
-
-    const fallback = (await prisma.user.findFirst({
-      include: { memberships: true },
-      orderBy: { createdAt: "asc" }
-    })) as StoredUser | null;
-    return fallback ? mapUser(fallback) : undefined;
   } catch {
     return undefined;
   }
+
+  return undefined;
 }

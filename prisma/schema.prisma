@@ -90,10 +90,23 @@ enum NotificationDeliveryStatus {
   FAILED
 }
 
+enum NotificationReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum AgentBreakdownDraftStatus {
   PENDING
   CONFIRMED
   DISCARDED
+}
+
+enum FeishuAuthAuditEvent {
+  LOGIN_SUCCEEDED
+  LOGIN_FAILED
+  PROFILE_COMPLETED
+  BINDING_REMOVED
 }
 
 model Person {
@@ -143,12 +156,68 @@ model User {
   role                 PlatformRole
   personId             String
   person               Person                @relation(fields: [personId], references: [id])
+  feishuBinding        FeishuAccountBinding?
+  feishuAuthAuditLogs  FeishuAuthAuditLog[]
   memberships          ProjectMembership[]
   agentBreakdownDrafts AgentBreakdownDraft[]
   agentApiKeys         AgentApiKey[]
   agentInvocations     AgentToolInvocation[] @relation("CallerUserInvocations")
   createdWorkPackages  WorkPackage[]         @relation("CreatedWorkPackages")
+  notifications        UserNotification[]
+  createdNotificationReviews NotificationReviewRequest[] @relation("NotificationReviewRequester")
+  assignedNotificationReviews NotificationReviewRequest[] @relation("NotificationReviewReviewer")
+  receivedNotificationReviewResults NotificationReviewRequest[] @relation("NotificationReviewReviewed")
   createdAt            DateTime              @default(now())
+}
+
+model FeishuAccountBinding {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  tenantKey    String   @default("default")
+  openId       String
+  unionId      String?
+  avatarUrl    String?
+  displayName  String
+  email        String?
+  mobile       String?
+  profileCompletedAt DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastLoginAt  DateTime?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantKey, openId])
+}
+
+model FeishuAuthAuditLog {
+  id          String               @id @default(cuid())
+  userId      String?
+  tenantKey   String               @default("default")
+  openId      String?
+  unionId     String?
+  event       FeishuAuthAuditEvent
+  success     Boolean              @default(true)
+  message     String?
+  redirectTo  String?
+  createdAt   DateTime             @default(now())
+  user        User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([event, createdAt])
+}
+
+model FeishuDepartmentTreeSnapshot {
+  id             String   @id @default(cuid())
+  tenantKey      String   @unique @default("default")
+  treeJson       String   @default("[]")
+  departmentOptionsJson String @default("[]")
+  excludedDepartmentIdsJson String @default("[]")
+  departmentCount Int     @default(0)
+  userCount      Int      @default(0)
+  syncedAt       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model ProjectMembership {
@@ -350,6 +419,45 @@ model NotificationDelivery {
   channel        NotificationChannel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
   rule           NotificationRule           @relation(fields: [ruleId], references: [id], onDelete: Cascade)
   createdAt      DateTime                   @default(now())
+}
+
+model UserNotification {
+  id              String    @id @default(cuid())
+  recipientUserId String
+  title           String
+  body            String
+  level           RiskLevel @default(MEDIUM)
+  source          String    @default("system")
+  link            String?
+  payloadJson     String    @default("{}")
+  readAt          DateTime?
+  unreadReminderSentAt DateTime?
+  createdAt       DateTime  @default(now())
+  recipient       User      @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([recipientUserId, createdAt])
+}
+
+model NotificationReviewRequest {
+  id              String                   @id @default(cuid())
+  requesterUserId String
+  reviewerUserId  String
+  reviewedUserId  String
+  title           String
+  body            String
+  link            String?
+  payloadJson     String                   @default("{}")
+  status          NotificationReviewStatus @default(PENDING)
+  resultComment   String?
+  reviewedAt      DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  requester       User                     @relation("NotificationReviewRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  reviewer        User                     @relation("NotificationReviewReviewer", fields: [reviewerUserId], references: [id], onDelete: Cascade)
+  reviewedUser    User                     @relation("NotificationReviewReviewed", fields: [reviewedUserId], references: [id], onDelete: Cascade)
+
+  @@index([reviewerUserId, status, createdAt])
+  @@index([reviewedUserId, createdAt])
 }
 
 model PlatformFeatureFlag {

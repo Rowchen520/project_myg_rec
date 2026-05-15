@@ -11,14 +11,15 @@ export const dynamic = "force-dynamic";
  * Loads the workspace snapshot once and renders the global sidebar.
  */
 export default async function GlobalLayout({ children }: { children: ReactNode }) {
-  const { snapshot, currentUser } = await getShellRequestContext();
+  const { snapshot, currentUser, unreadNotificationCount } = await getShellRequestContext();
   const flags = await listPlatformFeatureFlags();
 
   return (
     <AppShell
       projects={snapshot.projects}
       currentUser={currentUser}
-      sidebar={<GlobalSidebar flags={flags} currentUser={currentUser} />}
+      unreadNotificationCount={unreadNotificationCount}
+      sidebar={<GlobalSidebar flags={flags} currentUser={currentUser} unreadNotificationCount={unreadNotificationCount} />}
     >
       {children}
     </AppShell>

@@ -1,14 +1,17 @@
 import Link from "next/link";
+import { AdminUsersPanel } from "@/components/admin/AdminUsersPanel";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { Badge } from "@/components/primer/Badge";
 import { Surface } from "@/components/primer/Surface";
 import { permissionMatrix, roleLabels } from "@/lib/rbac";
+import { getStoredFeishuDepartmentTreeSnapshot } from "@/lib/services/feishu-department-tree";
 import { getShellRequestContext } from "@/lib/services/shell-request-context";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const { snapshot, currentUser } = await getShellRequestContext();
+  const departmentTreeSnapshot = await getStoredFeishuDepartmentTreeSnapshot();
 
   const isAdmin = currentUser?.role === "admin";
 
@@ -28,6 +31,9 @@ export default async function AdminPage() {
           <div style={{ display: "flex", gap: 8 }}>
             <Link href="/admin/feature-flags" className="btn" data-size="sm" data-variant="primary">
               平台模块开关
+            </Link>
+            <Link href="/admin/notifications" className="btn" data-size="sm">
+              通知配置
             </Link>
             <Link href="/admin/agent-keys" className="btn" data-size="sm">
               Agent Key
@@ -109,43 +115,9 @@ export default async function AdminPage() {
           </table>
         </Surface>
 
-        <Surface
-          title={`用户 (${snapshot.users.length})`}
-          description="平台账号和默认角色。"
-          flush
-        >
-          <table className="data-table">
-            <colgroup>
-              <col />
-              <col style={{ width: 120 }} />
-            </colgroup>
-            <tbody>
-              {snapshot.users.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <strong style={{ fontSize: 13 }}>{user.name}</strong>
-                    <p className="hint mono" style={{ margin: "2px 0 0", fontSize: 11 }}>
-                      {user.id}
-                    </p>
-                  </td>
-                  <td>
-                    <Badge
-                      tone={
-                        user.role === "admin"
-                          ? "danger"
-                          : user.role === "projectManager"
-                            ? "accent"
-                            : "default"
-                      }
-                    >
-                      {roleLabels[user.role]}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Surface>
+        <AdminUsersPanel
+          departmentTreeSnapshot={departmentTreeSnapshot}
+        />
       </div>
 
       <Surface
