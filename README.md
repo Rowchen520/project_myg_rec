@@ -44,7 +44,7 @@ npm run test:e2e
 
 ## 飞书部门树接口
 
-飞书部门树能力已迁移为 TypeScript 服务和 API。管理员界面的用户板块改为同一面板内切换“权限角色”和“部门树”视图；部门树支持本地搜索与折叠树形展示，默认只读取本地持久化缓存，只有点击“同步部门树”时才会调用飞书接口并刷新缓存。同步按钮下方新增“同步设置”，可勾选下次同步时要屏蔽的部门；被屏蔽部门及其子部门会在下次同步时被跳过。
+飞书部门树能力已迁移为 TypeScript 服务和 API。管理员界面的用户板块改为同一面板内切换“权限角色”和“部门树”视图；部门树支持本地搜索与折叠树形展示，默认只读取本地持久化缓存，只有点击“同步部门树”时才会调用飞书接口并刷新缓存。同步按钮下方新增“同步设置”，并已改为部门树样式，可分别勾选上级部门或下级部门；被屏蔽部门及其子部门会在下次同步时被跳过。
 
 `GET /api/feishu/departments` 返回当前缓存快照，包含 `tree`、`availableDepartments`、`excludedDepartmentIds`、`departmentCount`、`userCount`、`syncedAt`。`PATCH /api/feishu/departments` 用于保存下次同步的屏蔽部门列表；`POST /api/feishu/departments` 用于触发飞书拉取并按当前屏蔽设置写入持久化缓存。
 

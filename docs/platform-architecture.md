@@ -439,6 +439,7 @@ classDiagram
 - `[已落地]` `app/api/notifications/reminders/overdue/route.ts` + `scripts/send-overdue-notification-reminders.mjs`：受 `NOTIFICATION_REMINDER_CRON_TOKEN` 保护的定时入口；可由系统计划任务或外部调度器按计划扫描全量用户的超时未读消息，并发送飞书卡片提醒。
 - `[已落地]` `NotificationReviewRequest` + `app/api/notifications/reviews/**`：审核消息闭环接口；业务可向审核人 A 发起审核请求，A 提交审核结果后，系统自动把结果以站内通知回发给被审核用户。
 - `[已落地]` `FeishuDepartmentTreeSnapshot.departmentOptionsJson / excludedDepartmentIdsJson` + `PATCH /api/feishu/departments`：部门树同步设置；管理员可在“同步部门树”按钮下方配置下次同步要屏蔽的部门，服务端在真正同步时按 `open_department_id` 跳过这些部门及其子部门。
+- `[已落地]` 同步设置界面已按部门树层级展示可选部门，并保留父子节点独立勾选能力；数据侧通过 `parentOpenDepartmentId` 维持层级关系，便于管理员直接在树上选择上级部门或下级部门。
 - `[已落地]` `lib/services/platform-overview.ts`：聚合服务。输入「当前用户可见项目集」，输出 `ProjectOverviewMetric[]` + 顶部全局 KPI（总项目 / 总工作项 / 高风险项目 / 逾期数 / 阻塞数 / 即将到期里程碑数）。复用 `lib/steward.ts` 与工作区快照，不引入新数据源。
 - `[已落地]` `lib/services/feature-flags.ts`：读写 `PlatformFeatureFlag`，提供 `isModuleEnabledForUser(moduleKey, user)` 工具，被 `MyWorkbench` / 全局侧边栏 / 各 `/my/*` 路由 SSR 调用以决定渲染与否。
 - `[已落地]` `lib/services/launch-preferences.ts`：以 cookie 形式记忆「上次选择的项目」与「是否跳过启动页」，给 `/` 重定向逻辑使用。

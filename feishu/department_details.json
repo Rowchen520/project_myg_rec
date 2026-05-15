@@ -1,0 +1,1275 @@
+[
+  {
+    "department_name": "总经理",
+    "users": [
+      {
+        "name": "冯坚",
+        "open_id": "ou_71bd3725f10ead07eb023eb626d55cd3"
+      },
+      {
+        "name": "董琪 ",
+        "open_id": "ou_87bf686f539fc63f9a07d9b0766d5533"
+      }
+    ],
+    "children": [
+      {
+        "department_name": "质量管理",
+        "users": [
+          {
+            "name": "钟国强",
+            "open_id": "ou_652a8b39f55590b4f8afb16ee818c72c"
+          },
+          {
+            "name": "恽圆霞",
+            "open_id": "ou_d051ae227f6f4cf599d00cf8a72b1e85"
+          },
+          {
+            "name": "贾红妮",
+            "open_id": "ou_0d3ddcfd95a5e8527861adc2c30a79af"
+          },
+          {
+            "name": "曹振锋",
+            "open_id": "ou_8e7790b540a632d8c0322e95c977b8bf"
+          },
+          {
+            "name": "潘品态",
+            "open_id": "ou_fb8192966f238866a44e2aea07098bbf"
+          },
+          {
+            "name": "俞兵",
+            "open_id": "ou_6b2ad46c043ae8281f3ff78cd5d0f612"
+          },
+          {
+            "name": "刘舒",
+            "open_id": "ou_259afc59b7dac46974b89b25705a042f"
+          },
+          {
+            "name": "张博",
+            "open_id": "ou_d16eefb0b6cad2a3c65eda37005d41f6"
+          },
+          {
+            "name": "高浩祥",
+            "open_id": "ou_d39db0dd032f4ccd5133afa6e1a3aeb4"
+          }
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "department_name": "雷达",
+    "users": [
+      {
+        "name": "宫勇",
+        "open_id": "ou_2dca940969d9d0eca56764940ef38d7b"
+      }
+    ],
+    "children": [
+      {
+        "department_name": "雷达算法",
+        "users": [
+          {
+            "name": "刘吉祥",
+            "open_id": "ou_4f01692462c3bfd9a2c6bea021cc20b7"
+          },
+          {
+            "name": "赵杰",
+            "open_id": "ou_9837f9526130035c48a1b12e6f0206ea"
+          },
+          {
+            "name": "赵书艺",
+            "open_id": "ou_9798a80cadcc543a86ace56555f9b50d"
+          },
+          {
+            "name": "张龙涛",
+            "open_id": "ou_c10060527a12105f7d4b9812f58ebda2"
+          },
+          {
+            "name": "闫斌",
+            "open_id": "ou_a5949ccc6f8fcf4eab6e4f1ad622030f"
+          },
+          {
+            "name": "李珉熙",
+            "open_id": "ou_c254e7434d4ad834448be0c89bacf963"
+          },
+          {
+            "name": "苟志豪",
+            "open_id": "ou_3808dc63e41aaa4c0b09d2cce9eead7a"
+          },
+          {
+            "name": "李明川",
+            "open_id": "ou_7b143ac07b231cd47fa8ed311e25bd98"
+          },
+          {
+            "name": "朱修近",
+            "open_id": "ou_06c4f8a580c333ef346c3d2dbfc86602"
+          },
+          {
+            "name": "黄苏军",
+            "open_id": "ou_843f895de99c89b15b8074dbb4a6a56e"
+          },
+          {
+            "name": "梅长宇",
+            "open_id": "ou_88bb690f39b15c5ac29752b8d84cb1a8"
+          },
+          {
+            "name": "邝锐",
+            "open_id": "ou_6468a1ce88e05efca295889d0e330139"
+          },
+          {
+            "name": "费建雄",
+            "open_id": "ou_3e467355d9ace1ce899d7efe41c85dbb"
+          },
+          {
+            "name": "胡利婷",
+            "open_id": "ou_f544def2c7d1abc59dc353d598270c71"
+          },
+          {
+            "name": "刘学",
+            "open_id": "ou_ce68329d77789a53e2b932a880e10556"
+          },
+          {
+            "name": "杨博",
+            "open_id": "ou_81280a3ae0cf1a4b33cc14c02267caa7"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "雷达系统",
+        "users": [
+          {
+            "name": "刘福旭",
+            "open_id": "ou_3319c3eb19a228925f70bec9e9a0944c"
+          },
+          {
+            "name": "周志豪",
+            "open_id": "ou_5c4bbcf2b2726c911f00b118619a0c3d"
+          },
+          {
+            "name": "徐怡炯",
+            "open_id": "ou_5869b9f6ce1057b04108f3b185bd6e02"
+          },
+          {
+            "name": "王志棚",
+            "open_id": "ou_ebe86982bec73b0a911e79c4c95c7747"
+          },
+          {
+            "name": "张择纳",
+            "open_id": "ou_0a72a9ad724bf63f9d94b56020242ef3"
+          },
+          {
+            "name": "张荐元",
+            "open_id": "ou_56994f8c97d2d9ab7695d65984daedc0"
+          },
+          {
+            "name": "任元超 ",
+            "open_id": "ou_ab2400243d55b9b671d9f723e2714168"
+          },
+          {
+            "name": "马俊鹏",
+            "open_id": "ou_4b5c81beac01309c5398be96c179af64"
+          },
+          {
+            "name": "郁梓捷",
+            "open_id": "ou_179a5068483045d6f6b5dab4333a6f00"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "底层软件",
+        "users": [
+          {
+            "name": "谢波",
+            "open_id": "ou_32685e343cd5deafe200b790ef56e025"
+          },
+          {
+            "name": "向莉萍",
+            "open_id": "ou_8468ba465992aac231046ae324fd7c33"
+          },
+          {
+            "name": "冯邓",
+            "open_id": "ou_79c3aab82cabdaf4ee1c792ba80815f2"
+          },
+          {
+            "name": "吴承龙",
+            "open_id": "ou_7965fec6a9eee6469de3430ffb562669"
+          },
+          {
+            "name": "龚岩",
+            "open_id": "ou_cd8b0aef74bdfc511f6271b6ce9cb5f3"
+          },
+          {
+            "name": "贾坤",
+            "open_id": "ou_687728db61297bd00e02e9c32f9a52e6"
+          },
+          {
+            "name": "苏健",
+            "open_id": "ou_17ee8e0f7da00296bc2ba8693c219696"
+          },
+          {
+            "name": "许定波",
+            "open_id": "ou_7d91da56a2be3d6f80074ee0159eee95"
+          },
+          {
+            "name": "任政锋",
+            "open_id": "ou_830f51985e52a88610f52f22ac436a33"
+          },
+          {
+            "name": "李海林",
+            "open_id": "ou_4e1c25a1decf990085d06c9979e67b69"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "雷达测试",
+        "users": [
+          {
+            "name": "李丹",
+            "open_id": "ou_2e0ad0afb11df1ff1fbf041f467cdcab"
+          },
+          {
+            "name": "陈利",
+            "open_id": "ou_01ce8c90a5e865a42a34aea97643f686"
+          },
+          {
+            "name": "彭泽勇",
+            "open_id": "ou_a762526ff53d85c9bf77d4fb36bec762"
+          },
+          {
+            "name": "张文琪",
+            "open_id": "ou_c666d7c6b888250d0e817830c87f822c"
+          },
+          {
+            "name": "刘毅",
+            "open_id": "ou_2809435f808126ca9a6aae7a9c407aec"
+          },
+          {
+            "name": "吴锦浩",
+            "open_id": "ou_df43b4aec37eff99bcd8010c6176a99b"
+          },
+          {
+            "name": "秘子鹏",
+            "open_id": "ou_f2f56fd1e2822849daa8891590b5f2dc"
+          },
+          {
+            "name": "安华荣",
+            "open_id": "ou_d568296f30c4742f588e3f22f7144167"
+          },
+          {
+            "name": "雷佳谕",
+            "open_id": "ou_7778740511e9043d7c0ae5f5bba9b25a"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "工具链",
+        "users": [
+          {
+            "name": "余广",
+            "open_id": "ou_d3c414ca03384fcca2595d71464e8eeb"
+          },
+          {
+            "name": "李钰红",
+            "open_id": "ou_1befaffbe86c9d6381d1b2f7d3fac329"
+          },
+          {
+            "name": "曾发毅",
+            "open_id": "ou_75ed513b64a112b102b04590269fffd7"
+          },
+          {
+            "name": "易洪秋",
+            "open_id": "ou_bd3c390c44ff48b06955077497ed2973"
+          },
+          {
+            "name": "程逸航",
+            "open_id": "ou_e8a9ae4ecfcfad0fc20d13a719e713b8"
+          },
+          {
+            "name": "张谢云",
+            "open_id": "ou_b97b91decd883a5b84792e5d14102754"
+          },
+          {
+            "name": "杨志强",
+            "open_id": "ou_09abe1785ea27dbc16f091df81d66216"
+          },
+          {
+            "name": "王永亮",
+            "open_id": "ou_376c5eff7a5e1711fcd513592d63ef17"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "雷达架构",
+        "users": [],
+        "children": []
+      },
+      {
+        "department_name": "电子硬件",
+        "users": [
+          {
+            "name": "江雄",
+            "open_id": "ou_5afb08be91879afeda1f4cfdd7cf41c7"
+          },
+          {
+            "name": "郭怀成",
+            "open_id": "ou_56e2300b0455e8896e81cfdf8a432894"
+          },
+          {
+            "name": "姜宇",
+            "open_id": "ou_7a696b84f31493c0686bf6727924c9e6"
+          },
+          {
+            "name": "陈晓飞",
+            "open_id": "ou_6a73cc2250aef5de0ccd3073099ab912"
+          }
+        ],
+        "children": [
+          {
+            "department_name": "雷达天线",
+            "users": [
+              {
+                "name": "许焉恒",
+                "open_id": "ou_2a8ba705a79206c8c91d4a38db0fb3be"
+              },
+              {
+                "name": "张韩飞",
+                "open_id": "ou_fa7065066c0caf6fdb1dfaeddde10467"
+              },
+              {
+                "name": "赵中威",
+                "open_id": "ou_a39426037e304242e4d4ad9090e980de"
+              },
+              {
+                "name": "杨会芳",
+                "open_id": "ou_d0a12ed2f317671a90660a0fc236fec0"
+              }
+            ],
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "department_name": "域控",
+    "users": [],
+    "children": [
+      {
+        "department_name": "电子硬件",
+        "users": [
+          {
+            "name": "佘鹏程",
+            "open_id": "ou_2cc7faec6e12a3dbd0941c9aa84d2d15"
+          },
+          {
+            "name": "史建永",
+            "open_id": "ou_cdca360a303e72003e65a582f48d30ff"
+          },
+          {
+            "name": "高东宏",
+            "open_id": "ou_d3fb9b2577020cc4b3a93cc08c9c44da"
+          },
+          {
+            "name": "马金波",
+            "open_id": "ou_2dfbed4625517b280f122d9349493154"
+          },
+          {
+            "name": "商圣渝",
+            "open_id": "ou_599d221a83432ba84c676ff0ab7f552c"
+          },
+          {
+            "name": "邹琳",
+            "open_id": "ou_8da1b88d9663ae166f0a9edb34a8cf79"
+          },
+          {
+            "name": "申云龙",
+            "open_id": "ou_0e65752f18903df0837ba29b8ed19d2f"
+          },
+          {
+            "name": "姚琪",
+            "open_id": "ou_9176bf55cff34479dcfc01be49a28f4e"
+          },
+          {
+            "name": "杨荣广",
+            "open_id": "ou_e990fb0dc1f6d5bcaf07206dc8a31a35"
+          },
+          {
+            "name": "鹿红梅",
+            "open_id": "ou_c9f0d203d1016a9c4f30c4cf8a7c76e8"
+          },
+          {
+            "name": "王舒昀",
+            "open_id": "ou_7fae9a5046f1804b884cc67d56449aba"
+          }
+        ],
+        "children": [
+          {
+            "department_name": "测试仿真",
+            "users": [
+              {
+                "name": "侯栋",
+                "open_id": "ou_9aa91c720ea78d9a58ca4836a3d4cf0d"
+              },
+              {
+                "name": "李健荣",
+                "open_id": "ou_6bf01ea60f13eb6c34958d5445f04315"
+              },
+              {
+                "name": "陈涛",
+                "open_id": "ou_e6bf155642ebcb7e99d449c7ddac4a2e"
+              },
+              {
+                "name": "刘骏骁",
+                "open_id": "ou_a24c2b41d1f93c4dd8cba247c759f494"
+              },
+              {
+                "name": "吴新鹏",
+                "open_id": "ou_dc58360f1e61008490bbf764ba5954ae"
+              }
+            ],
+            "children": []
+          }
+        ]
+      },
+      {
+        "department_name": "域控软件",
+        "users": [
+          {
+            "name": "庆栋良",
+            "open_id": "ou_038029e0555c5c45ec026de6b2772c68"
+          }
+        ],
+        "children": [
+          {
+            "department_name": "MCU组",
+            "users": [
+              {
+                "name": "张新君",
+                "open_id": "ou_fc197128b70dc4a1fcd1d260cd21cb69"
+              },
+              {
+                "name": "邹博文",
+                "open_id": "ou_db15b73f232dc92c23726d514b9c0146"
+              },
+              {
+                "name": "乔波",
+                "open_id": "ou_fb984a03387bc6804d275fa4c6379f93"
+              },
+              {
+                "name": "周航",
+                "open_id": "ou_450f029ec81af677c5f9e821e08d78ea"
+              },
+              {
+                "name": "牛鹏飞",
+                "open_id": "ou_6ff70008174d44eeb29cfe3ab28e1a72"
+              },
+              {
+                "name": "丁兴超",
+                "open_id": "ou_afe30dfebd058391cc92111dae451247"
+              },
+              {
+                "name": "葛恒龙",
+                "open_id": "ou_a7c0bf0c4c3e9dd9c5fbd73406c8afdf"
+              },
+              {
+                "name": "孟宇",
+                "open_id": "ou_312794614acef32fd91a690223612e49"
+              },
+              {
+                "name": "王慧薷",
+                "open_id": "ou_c2333dd44ecc5176359c9f1424a76756"
+              },
+              {
+                "name": "李开心",
+                "open_id": "ou_8c4ea4422798051af42b4b7412e8c7f9"
+              }
+            ],
+            "children": []
+          },
+          {
+            "department_name": "BSP组",
+            "users": [
+              {
+                "name": "吴光",
+                "open_id": "ou_252937f3c38e2beaeee2ba41274e53c5"
+              },
+              {
+                "name": "王清宇",
+                "open_id": "ou_59fe6efa5826890a05a4726090f0310b"
+              },
+              {
+                "name": "龚洪彦",
+                "open_id": "ou_538930b3fd9097f475d1146d1a1cdba1"
+              },
+              {
+                "name": "李江良",
+                "open_id": "ou_6c654078d8f439400765d12071de4470"
+              },
+              {
+                "name": "张猛",
+                "open_id": "ou_5ac5d3693dd67f7a7d3e1ef7d8a48b94"
+              },
+              {
+                "name": "冉东",
+                "open_id": "ou_6262b08acc2b8cbe8dcd958f79c97b1a"
+              },
+              {
+                "name": "刘鑫",
+                "open_id": "ou_b2e2e862921f119529cc26945441d726"
+              },
+              {
+                "name": "朱晓东",
+                "open_id": "ou_e0cbe890432dd93b2a25bff14f21f155"
+              },
+              {
+                "name": "成文武",
+                "open_id": "ou_49873ae2d6c9cbb3241ff87627e77e33"
+              }
+            ],
+            "children": []
+          },
+          {
+            "department_name": "多媒体影像组",
+            "users": [
+              {
+                "name": "陈倩蓉",
+                "open_id": "ou_c0547b5171156eec53426ea24728598f"
+              },
+              {
+                "name": "胡铃",
+                "open_id": "ou_7381d5f866d9852dd12a9596f623b47f"
+              },
+              {
+                "name": "李相山",
+                "open_id": "ou_639c98a30fd972f7b60aae1b49da6ed6"
+              },
+              {
+                "name": "李斌",
+                "open_id": "ou_3e513b2dd72cd43432d43241fe2368e3"
+              },
+              {
+                "name": "杨永恒",
+                "open_id": "ou_38cef7faabfbd309b0c1025c89284d21"
+              }
+            ],
+            "children": []
+          },
+          {
+            "department_name": "架构中间件组",
+            "users": [
+              {
+                "name": "尹华铭",
+                "open_id": "ou_ec6a8275bcf41bcb6d14708394094ed3"
+              },
+              {
+                "name": "荀贝贝",
+                "open_id": "ou_85d4cc9661ba7baa782db53d62648287"
+              },
+              {
+                "name": "邢孟魁",
+                "open_id": "ou_0f52b25c8442aeade88f34b855dddbfa"
+              },
+              {
+                "name": "占干平",
+                "open_id": "ou_dfdf2aa3c73ae5853d57f36ef424acbf"
+              },
+              {
+                "name": "鞠臻 ",
+                "open_id": "ou_797e90298782a2a6bb4c7d2aeeae50a3"
+              },
+              {
+                "name": "杨树文",
+                "open_id": "ou_ba37a8d8f5528402cd71c53997856b72"
+              },
+              {
+                "name": "姚庆贺",
+                "open_id": "ou_f6e45c911a563ee2384ebfbb07034bb0"
+              },
+              {
+                "name": "徐兴隆",
+                "open_id": "ou_5fe6e9b2be72b426fee6a15d155d4cab"
+              },
+              {
+                "name": "雷朕",
+                "open_id": "ou_1b59b8a391f553f0ed6cc8acbaf86461"
+              }
+            ],
+            "children": []
+          },
+          {
+            "department_name": "集成发布组",
+            "users": [
+              {
+                "name": "林宁",
+                "open_id": "ou_3946ccaf622e37e861a82599ff776193"
+              },
+              {
+                "name": "惠伟",
+                "open_id": "ou_f6d7b49b992f2e16af5c2cad24c09137"
+              },
+              {
+                "name": "卞宝乐",
+                "open_id": "ou_53b3516901ccf70ac99d3fd277adac4a"
+              },
+              {
+                "name": "鲁林潼",
+                "open_id": "ou_39ac13a04b3e1d660015a6b1886351b3"
+              }
+            ],
+            "children": []
+          }
+        ]
+      },
+      {
+        "department_name": "域控系统",
+        "users": [
+          {
+            "name": "杜云霄",
+            "open_id": "ou_0488812a15c5a5ac4cf24cab3acfed10"
+          },
+          {
+            "name": "王刚刚",
+            "open_id": "ou_aabb452ecc4d135a6943e03dc5a7ffd6"
+          },
+          {
+            "name": "刘志忠",
+            "open_id": "ou_7d1a033354f534d844e3ab82dc93c2f8"
+          },
+          {
+            "name": "李广",
+            "open_id": "ou_ca5bc6436a19a5c52b036ecbd92bb074"
+          },
+          {
+            "name": "王琰",
+            "open_id": "ou_777335153cdc4619c66a24afa95ea77f"
+          },
+          {
+            "name": "纪清泉",
+            "open_id": "ou_533ed42e8735ab2b66b9aca151306664"
+          },
+          {
+            "name": "徐冰",
+            "open_id": "ou_7424d19d306c5683ab671e83beb79c80"
+          },
+          {
+            "name": "孙凤金",
+            "open_id": "ou_9a6281f142352f3c1d0b97a4e9d86e6d"
+          },
+          {
+            "name": "房寅",
+            "open_id": "ou_c4f1421cf7efa21bd5f6b8afff2a5683"
+          },
+          {
+            "name": "林诗冬",
+            "open_id": "ou_bac29c0e3b834d14f73619e77f3d6cf2"
+          },
+          {
+            "name": "顾晨",
+            "open_id": "ou_c2cf78d4b8a4c9d165513702c9ed28b4"
+          },
+          {
+            "name": "姚浩",
+            "open_id": "ou_fe71c4363b2f3a73dcbe998e06467edf"
+          },
+          {
+            "name": "姚庚辰",
+            "open_id": "ou_aa736bed7c4ee8337d1cb6ae067149cd"
+          },
+          {
+            "name": "孙恒",
+            "open_id": "ou_725defdb10f222ff4391a5153ed36725"
+          },
+          {
+            "name": "王玉得",
+            "open_id": "ou_3fa1006c785626787f2f1ac99c00e3ac"
+          },
+          {
+            "name": "付君强",
+            "open_id": "ou_05cc315c612eaf54bfa5c0c593deede0"
+          },
+          {
+            "name": "刘陈瀚",
+            "open_id": "ou_7526c06e00be5fe52a5bdbfb16a2d63e"
+          },
+          {
+            "name": "吴凌锋",
+            "open_id": "ou_f7d730aea25e1922f19273a5f346de9f"
+          },
+          {
+            "name": "查力云",
+            "open_id": "ou_627a96859858c96c4566611a56d9db6e"
+          },
+          {
+            "name": "李孝冰",
+            "open_id": "ou_db4eeae3428e9bf594f06531b1d67784"
+          },
+          {
+            "name": "邵飞帆",
+            "open_id": "ou_da53a1054373e2fdf7d05adf0ced6923"
+          },
+          {
+            "name": "曹宇尊",
+            "open_id": "ou_53cd3e05038d57d7a17143174aee6885"
+          }
+        ],
+        "children": [
+          {
+            "department_name": "FAE",
+            "users": [
+              {
+                "name": "孔德宇",
+                "open_id": "ou_1d33f1b3631a2d184b08280f21ea1179"
+              },
+              {
+                "name": "吴炜",
+                "open_id": "ou_abec2e64171698ad7d4d573b4512d404"
+              },
+              {
+                "name": "杨银涛 ",
+                "open_id": "ou_f1bdef24ed22c97f8ec4e1745aea0f9a"
+              }
+            ],
+            "children": []
+          }
+        ]
+      },
+      {
+        "department_name": "产品结构设计",
+        "users": [
+          {
+            "name": "谈晨杰",
+            "open_id": "ou_f6ff7f286268bc4b0722ca5646f2330c"
+          },
+          {
+            "name": "朱凯",
+            "open_id": "ou_aa13c382aa0391cfe566f354830209b7"
+          },
+          {
+            "name": "王珂",
+            "open_id": "ou_2c9d99677c08b3ef06e4450b9b623466"
+          },
+          {
+            "name": "唐姗杉",
+            "open_id": "ou_b52d84ce6f4a4ade194231159f117efe"
+          },
+          {
+            "name": "李子瑞",
+            "open_id": "ou_5c58fa629f1e6f98b4cde7899fb345e6"
+          },
+          {
+            "name": "树彬",
+            "open_id": "ou_1973dd726e0791760b36b51ad35fdd06"
+          },
+          {
+            "name": "张风",
+            "open_id": "ou_baab6c853e7f66f1a9d666ad91ed3dfa"
+          },
+          {
+            "name": "朱帮守",
+            "open_id": "ou_83087f40b9908b1de3ec70856047695d"
+          },
+          {
+            "name": "许方园",
+            "open_id": "ou_11c94b8e5b784039a40d04b7f91fbc2c"
+          },
+          {
+            "name": "刘青",
+            "open_id": "ou_ba25b7f18aa2943fddd81a9cd33a95ff"
+          },
+          {
+            "name": "吴静",
+            "open_id": "ou_6cb42218d918e94bdb6b6ed16f9b5d5c"
+          },
+          {
+            "name": "卞新建",
+            "open_id": "ou_c7f3bffc54935ac60ddec9abc4183a14"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "系统软件测试",
+        "users": [
+          {
+            "name": "李融融",
+            "open_id": "ou_0c22f4b4d2f8d697024725de8096668c"
+          },
+          {
+            "name": "薛军军",
+            "open_id": "ou_be6db9653b970293d1f55804e0c6c8de"
+          },
+          {
+            "name": "周碧雯",
+            "open_id": "ou_5d9674c18bcef64ffef0d5a7aab55164"
+          },
+          {
+            "name": "侯思燚",
+            "open_id": "ou_ca49f64331a85b762591f946f1c032a8"
+          },
+          {
+            "name": "刘书海",
+            "open_id": "ou_2d76aeecd85aa5c78f47dea0401e2f0b"
+          },
+          {
+            "name": "李劲",
+            "open_id": "ou_30688fa7079048a4da271d43a0f210bc"
+          },
+          {
+            "name": "李春梅",
+            "open_id": "ou_707493e8e5b8c2249571189957419e98"
+          },
+          {
+            "name": "杨子渲",
+            "open_id": "ou_1acad1fe781587bff28421c151ef7b38"
+          },
+          {
+            "name": "谢苗文",
+            "open_id": "ou_a4a7d998ec9ec12f9c8813af0adfee5b"
+          },
+          {
+            "name": "姚甜甜",
+            "open_id": "ou_6318ee16834e938049c929ec1ee04b5c"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "域控产品",
+        "users": [
+          {
+            "name": "黄窑",
+            "open_id": "ou_5344e0ea648bd56b84cf4fc02ac18715"
+          },
+          {
+            "name": "张志伟",
+            "open_id": "ou_8d67c8ce27952ac71c19d06c2ce950cf"
+          },
+          {
+            "name": "殷海辰",
+            "open_id": "ou_6599ccdd6bb45502fb59543eb1f114b3"
+          }
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "department_name": "综合管理",
+    "users": [],
+    "children": [
+      {
+        "department_name": "人事行政",
+        "users": [
+          {
+            "name": "卜芸Yvonne",
+            "open_id": "ou_769f7cb67194e7a189a306580c36e3c6"
+          },
+          {
+            "name": "吴俊雯",
+            "open_id": "ou_0367dc241f4a6088420494a58cbcd5f0"
+          },
+          {
+            "name": "刘阳溢",
+            "open_id": "ou_b0aad6d3d76bb46c0ad891cdb92782a6"
+          },
+          {
+            "name": "都娟",
+            "open_id": "ou_b15a8309bd5f63f9247e4dee639fd866"
+          },
+          {
+            "name": "黄佳",
+            "open_id": "ou_6b93c11c1cb1c0fa3e19eaedea8a71d6"
+          },
+          {
+            "name": "高雪",
+            "open_id": "ou_f8e0b2afab18e0ee6895f0190c19c575"
+          },
+          {
+            "name": "刘婷",
+            "open_id": "ou_23965272fb2153177d0d8c4450751625"
+          },
+          {
+            "name": "朱晓晨",
+            "open_id": "ou_b89f5bc072bac23096947c574c316def"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "成本控制",
+        "users": [
+          {
+            "name": "黄天翼",
+            "open_id": "ou_28309c944db3cb9f41a7bf0423fc082a"
+          },
+          {
+            "name": "贺雲",
+            "open_id": "ou_579a71e83d35f0c410ed6ab7fad56133"
+          },
+          {
+            "name": "姚思远",
+            "open_id": "ou_d45676aea927fec30dc879f376e6e0f5"
+          },
+          {
+            "name": "张娟",
+            "open_id": "ou_a5461596768614f3ed35067d06d5b9c9"
+          },
+          {
+            "name": "季云涛",
+            "open_id": "ou_b12a689eec99ae1d17f4f20d9384a3cb"
+          },
+          {
+            "name": "胡晓鹏",
+            "open_id": "ou_39d62d037e6cc9b239a1461c8a680b18"
+          },
+          {
+            "name": "黄文怡",
+            "open_id": "ou_839e9263c1faba720b544a0532b7d032"
+          },
+          {
+            "name": "王紫怡",
+            "open_id": "ou_10d411a49c1bf1ebd641a2a815bf58f9"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "商务",
+        "users": [
+          {
+            "name": "蔡景洋",
+            "open_id": "ou_4506bf973f28c17cb5b3b65968cb2ae2"
+          },
+          {
+            "name": "周志强",
+            "open_id": "ou_39fb0fab3f7f2ab895a49d9575cd8bd8"
+          },
+          {
+            "name": "蒋荣",
+            "open_id": "ou_f9fbdab71b48963ac177a56538d11096"
+          },
+          {
+            "name": "李娜娜",
+            "open_id": "ou_8a9948e744eac9b2aae74f41a5b43478"
+          },
+          {
+            "name": "Jack",
+            "open_id": "ou_a09d8d9ad8488ed14a8a44e48fbee09c"
+          },
+          {
+            "name": "郭进",
+            "open_id": "ou_4376f8e022fe8c13aad0822a19c483cb"
+          },
+          {
+            "name": "陶亚敏",
+            "open_id": "ou_2f26ea3c4b19cf109864fd3ac7ab1d43"
+          },
+          {
+            "name": "产伊贞",
+            "open_id": "ou_15f349503511e3f4535c7d83ac653553"
+          },
+          {
+            "name": "邱帆",
+            "open_id": "ou_c2612b8041489aeceffababf743a9666"
+          },
+          {
+            "name": "喻玺冰",
+            "open_id": "ou_646c84773245aede407e96276440aca8"
+          },
+          {
+            "name": "王琦",
+            "open_id": "ou_fcfce8ad03916386eca7de31453f463b"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "流程管理（研发）",
+        "users": [
+          {
+            "name": "潘永波",
+            "open_id": "ou_ee34f7c72fa74df9bc4012a6634e2005"
+          },
+          {
+            "name": "龙丽",
+            "open_id": "ou_6dc13b8fab45a0eaed5bc8976ba2b589"
+          },
+          {
+            "name": "顾浩",
+            "open_id": "ou_1391c4608b3f1b1dde1e84246c7396e7"
+          },
+          {
+            "name": "杨雪瑞",
+            "open_id": "ou_05071813712ae6754a9bc49f6c946748"
+          },
+          {
+            "name": "杨燕青",
+            "open_id": "ou_0095f9d714eac5d09cd355ed786a9654"
+          }
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "department_name": "底盘",
+    "users": [
+      {
+        "name": "Reanna",
+        "open_id": "ou_6f4305b725e55ca58898e456b23c4ec4"
+      }
+    ],
+    "children": [
+      {
+        "department_name": "机械开发部",
+        "users": [
+          {
+            "name": "Jason ",
+            "open_id": "ou_7c2e66a86ebd298223b1213127294e5f"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "产品开发部",
+        "users": [
+          {
+            "name": "吴广达",
+            "open_id": "ou_0416948d242368a74fefb3366d01e5d2"
+          }
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "department_name": "项目管理及制造",
+    "users": [
+      {
+        "name": "曹阳",
+        "open_id": "ou_bf4fa405d227c7353e2ae857abe09f1a"
+      }
+    ],
+    "children": [
+      {
+        "department_name": "项目管理",
+        "users": [
+          {
+            "name": "张婷婷",
+            "open_id": "ou_c9f29e34a3cfb81dedb09beb103e3ab6"
+          },
+          {
+            "name": "黎洪",
+            "open_id": "ou_58405068ef1b4bed3b6adbe47fcc0ccd"
+          },
+          {
+            "name": "严建云",
+            "open_id": "ou_b412187ab52ed4c76aa727937fa12e57"
+          },
+          {
+            "name": "刘虎",
+            "open_id": "ou_2f47ce92841bca581dc1d36cbec30ce3"
+          },
+          {
+            "name": "王珉君",
+            "open_id": "ou_9821f91edaa7dbae30375be0841ec36b"
+          },
+          {
+            "name": "许雪敏",
+            "open_id": "ou_4632c1ef61d3d6a7600a8f35af998fd0"
+          },
+          {
+            "name": "刘飞",
+            "open_id": "ou_b25e450fd126ae68d6a4a8739bc03d4c"
+          },
+          {
+            "name": "潘宇驰",
+            "open_id": "ou_f6ba9f2cc6da60c609413789c2859b69"
+          },
+          {
+            "name": "朱姗",
+            "open_id": "ou_5e8a27c87279930525dc1fe8cc516b8e"
+          },
+          {
+            "name": "元京杰",
+            "open_id": "ou_7f8b6e796e48e98d13867cdcda1a4dfd"
+          },
+          {
+            "name": "罗海伟",
+            "open_id": "ou_8a327a26922c4d7696415ffd3d03b9a5"
+          },
+          {
+            "name": "刘江波",
+            "open_id": "ou_50b0b900ecbc480d8a4700272002ea50"
+          },
+          {
+            "name": "王乘",
+            "open_id": "ou_dff01b82c55a47ef8e94fc16d832c916"
+          },
+          {
+            "name": "李玉琳",
+            "open_id": "ou_720dc392a98093d308590054519203c9"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "产品工程",
+        "users": [
+          {
+            "name": "袁李春",
+            "open_id": "ou_e9a908b155a3aa9ad65cbeb3621c94a3"
+          },
+          {
+            "name": "徐昊",
+            "open_id": "ou_bddfa75c528a22abf97caacf6da5b742"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "产品化",
+        "users": [
+          {
+            "name": "刘星",
+            "open_id": "ou_a4fb4357833f0ee91a040c15360f7f92"
+          }
+        ],
+        "children": [
+          {
+            "department_name": "自动化工程",
+            "users": [
+              {
+                "name": "顾春彬",
+                "open_id": "ou_d9ff64349f62c6c301b59ad1edfa9c9c"
+              },
+              {
+                "name": "李朋洋",
+                "open_id": "ou_c375e51b1759640236a3bc972885ebcb"
+              },
+              {
+                "name": "查代见",
+                "open_id": "ou_d1280b810832bc2965470c555cd98835"
+              }
+            ],
+            "children": []
+          },
+          {
+            "department_name": "测试开发工程",
+            "users": [
+              {
+                "name": "杨洋",
+                "open_id": "ou_05fc9bdf8524215bd6fb6a5cc501383e"
+              },
+              {
+                "name": "张宗飞",
+                "open_id": "ou_ea64412c8c2e8f4c064f995ff3f6cb11"
+              },
+              {
+                "name": "张鸿运",
+                "open_id": "ou_d37694622b700fc7ebad38731997ba2a"
+              },
+              {
+                "name": "申玉康",
+                "open_id": "ou_5d39334857bebda647f72a8bec028101"
+              },
+              {
+                "name": "郜业奎",
+                "open_id": "ou_4c59bf7212bc5727cbb28ff940e8abb7"
+              },
+              {
+                "name": "郭九荣",
+                "open_id": "ou_0df8128406f18eae0af3a3d966d40e03"
+              },
+              {
+                "name": "彭青青",
+                "open_id": "ou_5cb8e30ff536b73663c895cdf1ddd98a"
+              }
+            ],
+            "children": []
+          },
+          {
+            "department_name": "工艺策划工程",
+            "users": [
+              {
+                "name": "江明罗",
+                "open_id": "ou_194ca31bf447f699e3e5ed92d578a8c6"
+              },
+              {
+                "name": "叶佳佳",
+                "open_id": "ou_9185bcaae77b6f83fda83cc96e6e8a79"
+              },
+              {
+                "name": "刘永森",
+                "open_id": "ou_3c8f06efb62668edb686acec015682b0"
+              }
+            ],
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "department_name": "集团支持部门",
+    "users": [
+      {
+        "name": "王奇奇",
+        "open_id": "ou_0568005599484c7c161ac298d9c9d3fb"
+      }
+    ],
+    "children": [
+      {
+        "department_name": "昆山立讯行销中心业务",
+        "users": [
+          {
+            "name": "任康",
+            "open_id": "ou_d35c72805851d01e481198da5eca1c83"
+          },
+          {
+            "name": "于凤超",
+            "open_id": "ou_b70868b93f19e6184bbda3dfaa8028b3"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "华为业务处",
+        "users": [
+          {
+            "name": "Annie Xing",
+            "open_id": "ou_63fa2f9450c5873755a542043f896437"
+          },
+          {
+            "name": "唐超强",
+            "open_id": "ou_a3e0db449006a31b4dcaf96b43892502"
+          },
+          {
+            "name": "唐玉香",
+            "open_id": "ou_489fa41b0efb67707c9f68acea2dd5c3"
+          }
+        ],
+        "children": []
+      },
+      {
+        "department_name": "宣城立讯",
+        "users": [
+          {
+            "name": "李俊松",
+            "open_id": "ou_60eb09f143066b6c9ed580666ef9350a"
+          },
+          {
+            "name": "唐金冬",
+            "open_id": "ou_6b711f83996ff17af0bf5bf99d16565c"
+          }
+        ],
+        "children": []
+      }
+    ]
+  }
+]
